@@ -13,40 +13,40 @@ Implement secure user registration, login, and logout functionality using Supaba
 - [ ] **Task 2:** Enable and configure Supabase Authentication (e.g., email/password, social logins if desired for MVP).
   - [ ] Review Supabase Auth settings in the dashboard.
   - [ ] Define email templates if necessary.
-- [ ] **Task 3:** Design `profiles` table in Supabase.
-  - [ ] Schema: `id` (UUID, references `auth.users` on delete cascade), `username` (TEXT, unique), `full_name` (TEXT, optional), `avatar_url` (TEXT, optional), `updated_at` (TIMESTAMPTZ), `created_at` (TIMESTAMPTZ).
-  - [ ] Set up RLS policies for `profiles` table (e.g., users can read their own profile, users can update their own profile, public read access to minimal fields if needed).
-- [ ] **Task 4:** Create a Supabase database function to automatically create a new profile entry when a new user signs up (triggered by `auth.users` table insert).
+- [x] **Task 3:** Design `profiles` table in Supabase.
+  - [x] Schema: `id` (UUID, references `auth.users` on delete cascade), `username` (TEXT, unique), `full_name` (TEXT, optional), `avatar_url` (TEXT, optional), `updated_at` (TIMESTAMPTZ), `created_at` (TIMESTAMPTZ).
+  - [x] Set up RLS policies for `profiles` table (e.g., users can read their own profile, users can update their own profile, public read access to minimal fields if needed).
+- [x] **Task 4:** Create a Supabase database function to automatically create a new profile entry when a new user signs up (triggered by `auth.users` table insert).
 
 ### 2.2. Frontend - UI Components & Pages
-- [ ] **Task 5:** Create Registration Page (`/src/app/(auth)/signup/page.tsx`).
-  - [ ] Form fields: Email, Password, Confirm Password, Username (optional: Full Name).
-  - [ ] Use `react-hook-form` and `zod` for validation.
-  - [ ] Call Supabase `signUp` function.
-  - [ ] Handle success (e.g., redirect to login or show "check email" message) and errors (display user-friendly messages).
-- [ ] **Task 6:** Create Login Page (`/src/app/(auth)/login/page.tsx`).
-  - [ ] Form fields: Email, Password.
-  - [ ] Use `react-hook-form` and `zod` for validation.
-  - [ ] Call Supabase `signInWithPassword` function.
-  - [ ] Handle success (e.g., redirect to dashboard) and errors.
-- [ ] **Task 7:** Implement Logout Functionality.
-  - [ ] Create a "Logout" button/link (e.g., in a user dropdown or navbar).
-  - [ ] Call Supabase `signOut` function.
-  - [ ] Redirect to login page or home page.
+- [x] **Task 5:** Create Registration Page (`/src/app/(auth)/signup/page.tsx`).
+  - [x] Form fields: Email, Password, Confirm Password, Username (as per `profiles` table).
+  - [x] Use `react-hook-form` and `zod` for validation.
+  - [x] Call Supabase `signUp` function.
+  - [x] Handle success (e.g., redirect to login or show "check email" message) and errors (display user-friendly messages).
+- [x] **Task 6:** Create Login Page (`/src/app/(auth)/login/page.tsx`).
+  - [x] Form fields: Email, Password.
+  - [x] Use `react-hook-form` and `zod` for validation.
+  - [x] Call Supabase `signInWithPassword` function.
+  - [x] Handle success (redirect to dashboard) and errors.
+- [x] **Task 7:** Implement Logout Functionality.
+  - [x] Create a "Logout" button/link (e.g., in a user dropdown or navbar).
+  - [x] Call Supabase `signOut` function (likely via `AuthContext`).
+  - [x] Redirect to login page or home page.
 - [ ] **Task 8:** Create Basic User Profile Page (e.g., `/src/app/(dashboard)/profile/page.tsx`).
-  - [ ] Display user information (username, email).
+  - [x] Display user information (username, email).
   - [ ] Allow updating basic profile information (e.g., username, full name). (Consider if avatar upload is MVP or later).
-- [ ] **Task 9:** Create an Auth Context/Provider or use a state management solution (React Context for now as per guidelines) to manage user session state globally.
-  - [ ] `src/context/AuthContext.tsx` (or similar).
-  - [ ] Provider to wrap the application layout.
-  - [ ] Hook `useAuth()` to access user data and loading state.
-  - [ ] Listen to Supabase `onAuthStateChange` to update session state.
+- [x] **Task 9:** Create an Auth Context/Provider or use a state management solution (React Context for now as per guidelines) to manage user session state globally.
+  - [x] `src/context/AuthContext.tsx` (or similar).
+  - [x] Provider to wrap the application layout.
+  - [x] Hook `useAuth()` to access user data and loading state.
+  - [x] Listen to Supabase `onAuthStateChange` to update session state.
 
 ### 2.3. Frontend - Routing & Protection
-- [ ] **Task 10:** Implement protected routes for dashboard areas.
-  - [ ] Redirect unauthenticated users from `/src/app/(dashboard)/...` routes to `/login`.
-  - [ ] Redirect authenticated users from `/login` and `/signup` to `/dashboard`.
-- [ ] **Task 11:** Create `(auth)` and `(dashboard)` route groups and their respective layouts (`layout.tsx`).
+- [x] **Task 10:** Implement protected routes for dashboard areas.
+  - [x] Redirect unauthenticated users from `/src/app/(dashboard)/...` routes to `/login`.
+  - [x] Redirect authenticated users from `/login` and `/signup` to `/dashboard`.
+- [x] **Task 11:** Create `(auth)` and `(dashboard)` route groups and their respective layouts (`layout.tsx`).
 
 ### 2.4. Roles (Basic Implementation)
 - [ ] **Task 12:** Design how roles will be stored (e.g., a `role` column in `profiles` table, or a separate `user_roles` table if users can have multiple roles per context, though for trips it will be per trip member). For user-level roles, `profiles.role` is simpler. For trip-specific roles, this will be in the `trip_members` table later.
