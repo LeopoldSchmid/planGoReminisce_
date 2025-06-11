@@ -1,7 +1,7 @@
 # Feature: Trip Management (Phase 1 MVP)
 
-**Status:** Not Started
-**Last Updated:** 2025-06-08
+**Status:** In Progress
+**Last Updated:** 2025-06-11
 
 ## 1. Overview
 Allow users to create new trips, view a list of their trips, invite members, and implement role-based deletion (Owner/Co-Owner only).
@@ -9,14 +9,17 @@ Allow users to create new trips, view a list of their trips, invite members, and
 ## 2. Sub-Tasks & Implementation Details
 
 ### 2.1. Supabase Setup - Tables & RLS
-- [ ] **Task 1:** Design `trips` table.
-  - [ ] Schema: `id` (UUID, primary key), `name` (TEXT, not null), `description` (TEXT, optional), `start_date` (DATE, optional), `end_date` (DATE, optional), `created_by` (UUID, references `auth.users(id)`), `created_at` (TIMESTAMPTZ), `updated_at` (TIMESTAMPTZ).
-  - [ ] RLS: Users can create trips. Users can view trips they are members of. Users who are 'owner' or 'co-owner' of a trip can update it. Only 'owner' or 'co-owner' can delete.
-- [ ] **Task 2:** Design `trip_members` table (junction table).
-  - [ ] Schema: `id` (UUID, primary key), `trip_id` (UUID, references `trips(id)` on delete cascade), `user_id` (UUID, references `auth.users(id)` on delete cascade), `role` (TEXT, e.g., 'owner', 'co-owner', 'member', default 'member'), `joined_at` (TIMESTAMPTZ).
-  - [ ] Add unique constraint on (`trip_id`, `user_id`).
-  - [ ] RLS: Users can view their own membership. Trip owners/co-owners can add/remove members. Users can remove themselves (unless they are the sole owner).
-- [ ] **Task 3:** When a trip is created, automatically add the creator to `trip_members` with the 'owner' role. This can be done client-side in a transaction or via a Supabase function.
+- [x] **Task 1:** Design `trips` table.
+  - [x] Schema: `id` (UUID, primary key), `name` (TEXT, not null), `description` (TEXT, optional), `start_date` (DATE, optional), `end_date` (DATE, optional), `created_by` (UUID, references `auth.users(id)`), `created_at` (TIMESTAMPTZ), `updated_at` (TIMESTAMPTZ).
+  - [x] RLS: Users can create trips. Users can view trips they are members of. Users who are 'owner' or 'co-owner' of a trip can update it. Only 'owner' or 'co-owner' can delete.
+- [x] **Task 2:** Design `trip_members` table (junction table).
+  - [x] Schema: `id` (UUID, primary key), `trip_id` (UUID, references `trips(id)` on delete cascade), `user_id` (UUID, references `auth.users(id)` on delete cascade), `role` (TEXT, e.g., 'owner', 'co-owner', 'member', default 'member'), `joined_at` (TIMESTAMPTZ).
+  - [x] Add unique constraint on (`trip_id`, `user_id`).
+  - [x] RLS: Users can view their own membership. Trip owners/co-owners can add/remove members. Users can remove themselves (unless they are the sole owner).
+- [x] **Task 3:** When a trip is created, automatically add the creator to `trip_members` with the 'owner' role. This can be done client-side in a transaction or via a Supabase function.
+
+> **Note:**
+> Migrations for `trips` and `trip_members` tables, including RLS policies, are implemented and tested in `supabase/migrations/20250611120000_create_trips_and_trip_members.sql` as of 2025-06-11.
 
 ### 2.2. Frontend - Trip Creation
 - [ ] **Task 4:** Create "Create New Trip" Page/Modal (e.g., `/src/app/(dashboard)/trips/new/page.tsx` or a modal).

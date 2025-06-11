@@ -11,6 +11,8 @@ import {
 } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'; // Assuming Avatar is added via Shadcn
 
+import { EditProfileForm } from "@/app/dashboard/profile/EditProfileForm";
+
 export default function ProfilePage() {
   const { user, profile, isLoading } = useAuth();
 
@@ -88,10 +90,9 @@ export default function ProfilePage() {
             </div>
           </div>
           
-          {/* Placeholder for edit profile button/form - Task 8 sub-item */}
-          {/* <div className="pt-4">
-            <Button>Edit Profile</Button> 
-          </div> */}
+          <div className="pt-4">
+            <EditProfileForm profile={profile} />
+          </div>
         </CardContent>
       </Card>
     </div>

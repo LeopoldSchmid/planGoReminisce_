@@ -14,7 +14,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<PropsWithChildren<{}>> = ({ children }) => {
   const supabase = createSupabaseBrowserClient();
@@ -26,6 +26,7 @@ export const AuthProvider: React.FC<PropsWithChildren<{}>> = ({ children }) => {
   const fetchUserProfile = useCallback(async (supabaseUser: SupabaseUser | null) => {
     if (!supabaseUser) {
       setProfile(null);
+      setUser(null);
       return;
     }
     try {
@@ -36,14 +37,25 @@ export const AuthProvider: React.FC<PropsWithChildren<{}>> = ({ children }) => {
         .single();
 
       if (error) {
-        console.error('Error fetching profile:', error.message);
-        setProfile(null);
+        if (error.code === 'PGRST116' || error.message.includes('multiple (or no) rows returned')) {
+          console.error('Profile not found or duplicate profiles for user:', supabaseUser.id);
+          setProfile(null);
+          setUser(null);
+        } else {
+          console.error('Error fetching profile:', error.message);
+          setProfile(null);
+          setUser({ ...supabaseUser, profile: null });
+        }
       } else {
-        setProfile(data as Profile);
+        console.log('[AuthProvider] Profile fetched:', data);
+        const profileData = data as Profile;
+        setProfile(profileData);
+        setUser({ ...supabaseUser, profile: profileData });
       }
     } catch (e) {
       console.error('Exception fetching profile:', e);
       setProfile(null);
+      setUser({ ...supabaseUser, profile: null });
     }
   }, [supabase]);
 
@@ -52,34 +64,47 @@ export const AuthProvider: React.FC<PropsWithChildren<{}>> = ({ children }) => {
       setIsLoading(true);
       try {
         const { data: { session: currentSession } } = await supabase.auth.getSession();
+        console.log('[AuthProvider] Initial session:', currentSession);
         setSession(currentSession);
         const supabaseUser = currentSession?.user ?? null;
-        setUser(supabaseUser ? { ...supabaseUser, profile: null } : null);
+
         if (supabaseUser) {
           await fetchUserProfile(supabaseUser);
+        } else {
+          setUser(null);
+          setProfile(null);
         }
       } catch (error) {
         console.error('Error getting initial session:', error);
+        setUser(null);
+        setProfile(null);
       } finally {
         setIsLoading(false);
+        console.log('[AuthProvider] Loading completed');
       }
     };
 
     getInitialSession();
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, currentSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       setIsLoading(true);
+      console.log('[AuthProvider] Auth state changed:', event, currentSession);
       setSession(currentSession);
       const supabaseUser = currentSession?.user ?? null;
-      setUser(supabaseUser ? { ...supabaseUser, profile: null } : null);
+
       if (supabaseUser) {
         await fetchUserProfile(supabaseUser);
+      } else {
+        setUser(null);
+        setProfile(null);
       }
       setIsLoading(false);
     });
 
     return () => {
-      authListener?.subscription?.unsubscribe();
+      if (listener?.subscription) {
+        listener.subscription.unsubscribe();
+      }
     };
   }, [supabase, fetchUserProfile]);
 
@@ -90,8 +115,14 @@ export const AuthProvider: React.FC<PropsWithChildren<{}>> = ({ children }) => {
     setProfile(null);
   };
 
+  useEffect(() => {
+    console.log('[AuthProvider] State:', { session, user, profile, isLoading });
+  }, [session, user, profile, isLoading]);
+
   return (
-    <AuthContext.Provider value={{ session, user, profile, isLoading, signOut }}>
+    <AuthContext.Provider
+      value={{ session, user, profile, isLoading, signOut }}
+    >
       {children}
     </AuthContext.Provider>
   );

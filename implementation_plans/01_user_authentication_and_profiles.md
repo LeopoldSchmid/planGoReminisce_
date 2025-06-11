@@ -11,8 +11,7 @@ Implement secure user registration, login, and logout functionality using Supaba
 ### 2.1. Supabase Setup
 - [ ] **Task 1:** Confirm Supabase project is set up and credentials are in `.env.local`. (Already done)
 - [ ] **Task 2:** Enable and configure Supabase Authentication (e.g., email/password, social logins if desired for MVP).
-  - [ ] Review Supabase Auth settings in the dashboard.
-  - [ ] Define email templates if necessary.
+  - [ ] Review Supabase Auth settings in the dashboard. **[NOTE: Email/password is enabled. Social logins and email templates are not customized for MVP. Default Supabase templates in use.]**
 - [x] **Task 3:** Design `profiles` table in Supabase.
   - [x] Schema: `id` (UUID, references `auth.users` on delete cascade), `username` (TEXT, unique), `full_name` (TEXT, optional), `avatar_url` (TEXT, optional), `updated_at` (TIMESTAMPTZ), `created_at` (TIMESTAMPTZ).
   - [x] Set up RLS policies for `profiles` table (e.g., users can read their own profile, users can update their own profile, public read access to minimal fields if needed).
@@ -35,7 +34,7 @@ Implement secure user registration, login, and logout functionality using Supaba
   - [x] Redirect to login page or home page.
 - [ ] **Task 8:** Create Basic User Profile Page (e.g., `/src/app/(dashboard)/profile/page.tsx`).
   - [x] Display user information (username, email).
-  - [ ] Allow updating basic profile information (e.g., username, full name). (Consider if avatar upload is MVP or later).
+  - [x] Allow updating basic profile information (e.g., username, full name). (Avatar upload deferred for now; edit UI and service implemented.)
 - [x] **Task 9:** Create an Auth Context/Provider or use a state management solution (React Context for now as per guidelines) to manage user session state globally.
   - [x] `src/context/AuthContext.tsx` (or similar).
   - [x] Provider to wrap the application layout.
@@ -49,8 +48,8 @@ Implement secure user registration, login, and logout functionality using Supaba
 - [x] **Task 11:** Create `(auth)` and `(dashboard)` route groups and their respective layouts (`layout.tsx`).
 
 ### 2.4. Roles (Basic Implementation)
-- [ ] **Task 12:** Design how roles will be stored (e.g., a `role` column in `profiles` table, or a separate `user_roles` table if users can have multiple roles per context, though for trips it will be per trip member). For user-level roles, `profiles.role` is simpler. For trip-specific roles, this will be in the `trip_members` table later.
-  - For MVP, a general user role might not be strictly needed if trip-specific roles are the primary concern. Focus on setting up the `profiles` table first.
+- [x] **Task 12:** Design how roles will be stored (e.g., a `role` column in `profiles` table, or a separate `user_roles` table if users can have multiple roles per context, though for trips it will be per trip member).
+  - **Decision:** For MVP, user-level roles are not implemented. Trip-specific roles will be handled in the `trip_members` table in a future phase. The `profiles` table is focused on basic user info only.
 
 ## 3. Key Components/Files Involved
 *   **Frontend:**
