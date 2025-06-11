@@ -21,104 +21,111 @@ export const AuthProvider: React.FC<PropsWithChildren<{}>> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<UserWithProfile | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true); // Start true
 
   const fetchUserProfile = useCallback(async (supabaseUser: SupabaseUser | null) => {
-    console.log('fetchUserProfile called with:', supabaseUser);
+    console.log('[AuthProvider] fetchUserProfile: Start. User ID:', supabaseUser ? supabaseUser.id : 'null_user_object');
     if (!supabaseUser) {
       setProfile(null);
       setUser(null);
+      console.log('[AuthProvider] fetchUserProfile: No Supabase user provided, cleared profile/user. End.');
       return;
     }
     try {
-      const { data, error } = await supabase
+      console.log(`[AuthProvider] fetchUserProfile: Attempting to fetch profile for user ID: ${supabaseUser.id}`);
+      const { data, error, status } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', supabaseUser.id)
         .single();
+      console.log(`[AuthProvider] fetchUserProfile: Query completed for user ID: ${supabaseUser.id}. Status: ${status}. Error:`, error ? error.message : 'null', 'Data:', data ? 'exists' : 'null');
 
       if (error) {
         if (error.code === 'PGRST116' || error.message.includes('multiple (or no) rows returned')) {
-          console.error('Profile not found or duplicate profiles for user:', supabaseUser.id);
+          console.error(`[AuthProvider] fetchUserProfile: Profile not found or duplicate profiles for user ID: ${supabaseUser.id}. Error: ${error.message}`);
           setProfile(null);
-          setUser(null);
+          // Keep the Supabase user, but indicate no profile
+          setUser({ ...supabaseUser, profile: null });
         } else {
-          console.error('Error fetching profile:', error.message);
+          console.error(`[AuthProvider] fetchUserProfile: Error fetching profile for user ID: ${supabaseUser.id}. Error: ${error.message}`);
           setProfile(null);
           setUser({ ...supabaseUser, profile: null });
         }
-      } else {
-        console.log('[AuthProvider] Profile fetched:', data);
+      } else if (data) {
+        console.log(`[AuthProvider] fetchUserProfile: Profile successfully fetched for user ID: ${supabaseUser.id}.`);
         const profileData = data as Profile;
         setProfile(profileData);
         setUser({ ...supabaseUser, profile: profileData });
+      } else {
+        // This case should ideally be caught by PGRST116 if .single() expects a row and gets none.
+        // However, if data is null and no error, it means no profile found.
+        console.warn(`[AuthProvider] fetchUserProfile: No profile data returned for user ID: ${supabaseUser.id}, and no explicit error. Treating as profile not found.`);
+        setProfile(null);
+        setUser({ ...supabaseUser, profile: null });
       }
-    } catch (e) {
-      console.error('Exception fetching profile:', e);
+    } catch (e: any) {
+      console.error(`[AuthProvider] fetchUserProfile: Exception during profile fetch for user ID ${supabaseUser?.id || 'unknown_user_in_catch'}:`, e.message, e.stack);
       setProfile(null);
-      setUser({ ...supabaseUser, profile: null });
+      // Ensure user state is consistent even on exception
+      setUser(supabaseUser ? { ...supabaseUser, profile: null } : null);
     }
+    console.log(`[AuthProvider] fetchUserProfile: End for user ID: ${supabaseUser?.id || 'unknown_user_at_end'}. Profile set:`, profile !== null, 'User set:', user !== null);
   }, [supabase]);
 
   useEffect(() => {
-    const getInitialSession = async () => {
-      console.log('getInitialSession running');
-      setIsLoading(true);
-      try {
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
-        console.log('[AuthProvider] Initial session:', currentSession);
-        setSession(currentSession);
-        const supabaseUser = currentSession?.user ?? null;
+    console.log('[AuthProvider] Setting up onAuthStateChange listener.');
+    setIsLoading(true);
 
-        if (supabaseUser) {
-          await fetchUserProfile(supabaseUser);
-        } else {
-          setUser(null);
-          setProfile(null);
-        }
-      } catch (error) {
-        console.error('Error getting initial session:', error);
-        setUser(null);
-        setProfile(null);
-      } finally {
-        setIsLoading(false);
-        console.log('[AuthProvider] Loading completed');
-      }
-    };
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log(`[AuthProvider] onAuthStateChange event: ${event}.`);
+      setSession(session);
+      const supabaseUser = session?.user ?? null;
 
-    getInitialSession();
-
-    const { data: listener } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
-      setIsLoading(true);
-      console.log('[AuthProvider] Auth state changed:', event, currentSession);
-      setSession(currentSession);
-      const supabaseUser = currentSession?.user ?? null;
-
+      // Set user immediately, but with profile as null initially.
+      // The profile will be fetched in the background.
       if (supabaseUser) {
-        await fetchUserProfile(supabaseUser);
+        setUser({ ...supabaseUser, profile: null });
+        // Now, fetch the profile and update the state when it's done.
+        fetchUserProfile(supabaseUser);
       } else {
+        // If there's no user, clear user and profile state.
         setUser(null);
         setProfile(null);
       }
+
+      // As soon as the session is processed, we're no longer in the initial loading state.
+      // The profile will populate the UI when its fetch completes.
       setIsLoading(false);
+      console.log('[AuthProvider] Auth loading complete. Profile fetching will occur in the background.');
     });
 
     return () => {
-      if (listener?.subscription) {
-        listener.subscription.unsubscribe();
-      }
+      console.log('[AuthProvider] Unsubscribing from auth state changes.');
+      subscription?.unsubscribe();
     };
   }, [supabase, fetchUserProfile]);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    setSession(null);
-    setUser(null);
-    setProfile(null);
+    console.log('[AuthProvider] signOut: Initiated.');
+    try {
+        await supabase.auth.signOut();
+        setSession(null);
+        setUser(null);
+        setProfile(null);
+        console.log('[AuthProvider] signOut: Completed successfully.');
+    } catch (error: any) {
+        console.error('[AuthProvider] signOut: Error during sign out:', error.message, error.stack);
+    }
   };
 
+  // This useEffect is for debugging and can be removed or commented out later.
   useEffect(() => {
-    console.log('[AuthProvider] State:', { session, user, profile, isLoading });
+    console.log('[AuthProvider] State changed:', {
+      session: session ? 'exists' : 'null',
+      user: user ? `exists (ID: ${user.id}, Profile: ${user.profile ? 'yes' : 'no'})` : 'null',
+      // profile: profile ? 'exists' : 'null', // Redundant if user.profile is checked
+      isLoading
+    });
   }, [session, user, profile, isLoading]);
 
   return (
