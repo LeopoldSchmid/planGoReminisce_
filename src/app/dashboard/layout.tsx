@@ -33,6 +33,10 @@ export default function DashboardLayout({
   // User is authenticated, show dashboard
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <nav className="mb-6 flex gap-4">
+        <a href="/dashboard/trips" className="text-blue-600 hover:underline">My Trips</a>
+        <a href="/dashboard/profile" className="text-blue-600 hover:underline">Profile</a>
+      </nav>
       {children}
     </main>
   );

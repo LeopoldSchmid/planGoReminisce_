@@ -6,6 +6,9 @@
 ## 1. Overview
 Allow users to create new trips, view a list of their trips, invite members, and implement role-based deletion (Owner/Co-Owner only).
 
+> **Note:**
+> Trip dates (start_date, end_date) are optional and not required at creation. The app will support collaborative date selection as a future feature. For now, trips can be created without dates, and the UI will display "Dates: To Be Decided" if not set.
+
 ## 2. Sub-Tasks & Implementation Details
 
 ### 2.1. Supabase Setup - Tables & RLS
@@ -23,12 +26,13 @@ Allow users to create new trips, view a list of their trips, invite members, and
 
 ### 2.2. Frontend - Trip Creation
 - [ ] **Task 4:** Create "Create New Trip" Page/Modal (e.g., `/src/app/(dashboard)/trips/new/page.tsx` or a modal).
-  - [ ] Form fields: Trip Name, Description, Start Date, End Date.
+  - [ ] Form fields: Trip Name, Description. (Start Date, End Date are optional and can be left blank at creation.)
   - [ ] Use `react-hook-form` and `zod` for validation.
   - [ ] On submit:
     - Call a `tripService.createTrip` function.
     - This service function will insert into `trips` table and then insert the creator into `trip_members` table with 'owner' role (ideally in a Supabase function/transaction).
   - [ ] Handle success (e.g., redirect to the new trip's page or trip list) and errors.
+  - [ ] UI should display "Dates: To Be Decided" if no dates are set.
 
 ### 2.3. Frontend - Trip List & View
 - [ ] **Task 5:** Create "My Trips" Page (`/src/app/(dashboard)/trips/page.tsx`).

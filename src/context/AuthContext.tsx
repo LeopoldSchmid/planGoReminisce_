@@ -24,6 +24,7 @@ export const AuthProvider: React.FC<PropsWithChildren<{}>> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchUserProfile = useCallback(async (supabaseUser: SupabaseUser | null) => {
+    console.log('fetchUserProfile called with:', supabaseUser);
     if (!supabaseUser) {
       setProfile(null);
       setUser(null);
@@ -61,6 +62,7 @@ export const AuthProvider: React.FC<PropsWithChildren<{}>> = ({ children }) => {
 
   useEffect(() => {
     const getInitialSession = async () => {
+      console.log('getInitialSession running');
       setIsLoading(true);
       try {
         const { data: { session: currentSession } } = await supabase.auth.getSession();
