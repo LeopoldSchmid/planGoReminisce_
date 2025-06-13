@@ -131,7 +131,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_trip_members_with_profiles: {
+        Args: { p_trip_id: string; p_requester_user_id: string }
+        Returns: {
+          user_id: string
+          role: string
+          joined_at: string
+          username: string
+          full_name: string
+          avatar_url: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

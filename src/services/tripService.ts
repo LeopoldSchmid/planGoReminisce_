@@ -119,6 +119,47 @@ export async function getTripById(
 
 type TripMemberRow = Database['public']['Tables']['trip_members']['Row'];
 
+export type TripMemberWithProfile = {
+  user_id: string;
+  role: string; // Matches TEXT from SQL function
+  joined_at: string;
+  username: string | null; // Directly from profiles table via SQL function
+  full_name: string | null; // Directly from profiles table via SQL function
+  avatar_url: string | null; // Directly from profiles table via SQL function
+};
+
+export async function getTripMembers(
+  tripId: string,
+  requesterUserId: string
+): Promise<{ members: TripMemberWithProfile[] | null; error: any }> {
+  // Call the RPC function to get trip members with profiles.
+  // The SQL function itself handles the authorization check (requester is a member).
+  const { data: members, error } = await supabase.rpc('get_trip_members_with_profiles', {
+    p_trip_id: tripId,
+    p_requester_user_id: requesterUserId,
+  });
+
+  if (error) {
+    console.error('Error fetching trip members via RPC:', error);
+    // Check if the error indicates 'access denied' which our SQL function might return as empty or via specific error handling
+    // For now, we just return the generic error.
+    // If the SQL function returns an empty array for non-members, 'members' would be [] and error would be null.
+    return { members: null, error };
+  }
+
+  // If the SQL function returns an empty array when the requester is not a member (as currently designed),
+  // and data is an empty array with no error, this indicates either no members or access denied by the function logic.
+  // We might want to distinguish this from a general error if the SQL function were to raise specific errors.
+  if (members && members.length === 0) {
+    // This could mean no members, or the SQL function returned empty due to auth check.
+    // The SQL function currently returns an empty set if the requester is not a member.
+    // To provide a more specific error, the SQL function would need to RAISE an exception for '403 Forbidden'.
+    // For now, an empty array is a valid result (no members or access implicitly denied by empty result).
+  }
+
+  return { members: members as TripMemberWithProfile[], error: null };
+}
+
 export async function inviteMemberByEmail(
   tripId: string,
   inviterUserId: string,
