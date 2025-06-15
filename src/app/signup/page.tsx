@@ -22,10 +22,6 @@ const formSchema = z
     path: ['confirmPassword'],
   });
 
-type FormData = Omit<AuthFormData, 'confirmPassword'> & {
-  confirmPassword: string;
-};
-
 export default function SignUpPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -59,8 +55,8 @@ export default function SignUpPage() {
       } else {
         setError('An unexpected error occurred during sign up.');
       }
-    } catch (e: any) {
-      setError(e.message || 'An unexpected error occurred.');
+    } catch (e: unknown) {
+      setError((e as Error).message || 'An unexpected error occurred.');
     } finally {
       setLoading(false);
     }
@@ -68,7 +64,7 @@ export default function SignUpPage() {
 
   return (
     <div className="flex items-center justify-center min-h-screen">
-<AuthForm
+      <AuthForm
         type="signup"
         schema={formSchema as any}
         onSubmit={handleSignUp}
@@ -78,5 +74,3 @@ export default function SignUpPage() {
     </div>
   );
 }
-
-

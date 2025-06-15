@@ -1,6 +1,5 @@
 'use client';
 
-
 import * as z from 'zod';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
@@ -50,9 +49,9 @@ export default function LoginPage() {
       // Redirect to the specified redirect URL or dashboard
       router.push(redirectTo);
 
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('Login error:', e);
-      setError(e.message || 'An unexpected error occurred. Please try again.');
+      setError((e as Error).message || 'An unexpected error occurred. Please try again.');
     } finally {
       if (!error) setLoading(false);
     }
