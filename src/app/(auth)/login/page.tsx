@@ -2,7 +2,7 @@
 
 
 import * as z from 'zod';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { AuthForm, type AuthFormData } from '@/components/common/AuthForm';
 import { signIn } from '@/services/authService';
@@ -14,8 +14,11 @@ const formSchema = z.object({
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  
+  const redirectTo = searchParams.get('redirect') || '/dashboard';
 
   async function handleLogin(formData: Pick<AuthFormData, 'email' | 'password'>) {
     setLoading(true);
@@ -44,8 +47,8 @@ export default function LoginPage() {
         return;
       }
 
-      // Redirect to dashboard
-      router.push('/dashboard');
+      // Redirect to the specified redirect URL or dashboard
+      router.push(redirectTo);
 
     } catch (e: any) {
       console.error('Login error:', e);

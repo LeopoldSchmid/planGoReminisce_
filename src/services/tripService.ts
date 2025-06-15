@@ -317,3 +317,46 @@ export async function acceptTripInvitation(token: string): Promise<AcceptInvitat
 
   return { tripId, error: null };
 }
+
+/**
+ * Deletes a trip. Only owners and co-owners can delete trips.
+ * @param tripId The ID of the trip to delete
+ * @param userId The ID of the user attempting to delete the trip
+ * @returns An object indicating success or error
+ */
+export async function deleteTrip(tripId: string, userId: string): Promise<{ success: boolean; error: any }> {
+  try {
+    // First, verify the user has permission to delete (owner or co-owner)
+    const { data: memberData, error: memberError } = await supabase
+      .from('trip_members')
+      .select('role')
+      .eq('trip_id', tripId)
+      .eq('user_id', userId)
+      .single();
+
+    if (memberError || !memberData) {
+      console.error('Error checking user permissions:', memberError);
+      return { success: false, error: { message: 'You do not have permission to delete this trip.' } };
+    }
+
+    if (memberData.role !== 'owner' && memberData.role !== 'co-owner') {
+      return { success: false, error: { message: 'Only trip owners and co-owners can delete trips.' } };
+    }
+
+    // Delete the trip (cascade will handle trip_members and other related data)
+    const { error: deleteError } = await supabase
+      .from('trips')
+      .delete()
+      .eq('id', tripId);
+
+    if (deleteError) {
+      console.error('Error deleting trip:', deleteError);
+      return { success: false, error: { message: `Failed to delete trip: ${deleteError.message}` } };
+    }
+
+    return { success: true, error: null };
+  } catch (err: any) {
+    console.error('Unexpected error deleting trip:', err);
+    return { success: false, error: { message: err.message || 'An unexpected error occurred.' } };
+  }
+}

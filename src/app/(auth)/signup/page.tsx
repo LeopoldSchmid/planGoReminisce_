@@ -1,7 +1,7 @@
 'use client';
 
 import * as z from 'zod';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { AuthForm } from '@/components/common/AuthForm';
 import { signUp } from '@/services/authService';
@@ -28,9 +28,12 @@ type FormData = Omit<AuthFormData, 'confirmPassword'> & {
 
 export default function SignUpPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  
+  const redirectTo = searchParams.get('redirect') || '/dashboard';
 
   async function handleSignUp(formData: AuthFormData) {
     setError(null);
@@ -52,7 +55,7 @@ export default function SignUpPage() {
       } else if (data?.user && !data.session) {
         setMessage('Sign up successful! Please check your email to confirm your account.');
       } else if (data?.user) {
-        router.push('/dashboard');
+        router.push(redirectTo);
       } else {
         setError('An unexpected error occurred during sign up.');
       }
