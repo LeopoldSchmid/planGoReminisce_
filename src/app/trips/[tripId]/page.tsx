@@ -39,6 +39,7 @@ import { AggregatedShoppingView } from "@/components/shopping/AggregatedShopping
 import { ExpensesSection } from "@/components/expenses/ExpensesSection";
 import { RetroactiveExpenseManager } from "@/components/expenses/RetroactiveExpenseManager";
 import { RecipesSection } from "@/components/recipes/RecipesSection";
+import { TripPlanningSection } from "@/components/planning/TripPlanningSection";
 
 function TripDetailPageContent() {
   const router = useRouter();
@@ -292,6 +293,12 @@ function TripDetailPageContent() {
           )}
         </CardContent>
       </Card>
+
+      <TripPlanningSection
+        tripId={trip.id}
+        currentUserId={user?.id || ''}
+        currentUserRole={currentUserMemberInfo?.role}
+      />
 
       <RecipesSection 
         tripId={trip.id}

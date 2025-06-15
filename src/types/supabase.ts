@@ -667,6 +667,344 @@ export type Database = {
           }
         ]
       }
+      user_availability: {
+        Row: {
+          id: string
+          user_id: string
+          date: string
+          availability_status: string
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          date: string
+          availability_status: string
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          date?: string
+          availability_status?: string
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_availability_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      trip_availability_overrides: {
+        Row: {
+          id: string
+          trip_id: string
+          user_id: string
+          date: string
+          availability_status: string
+          override_reason: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          trip_id: string
+          user_id: string
+          date: string
+          availability_status: string
+          override_reason?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          trip_id?: string
+          user_id?: string
+          date?: string
+          availability_status?: string
+          override_reason?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_availability_overrides_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_availability_overrides_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      date_proposals: {
+        Row: {
+          id: string
+          trip_id: string
+          proposed_by: string
+          title: string
+          start_date: string
+          end_date: string
+          notes: string | null
+          is_finalized: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          trip_id: string
+          proposed_by: string
+          title: string
+          start_date: string
+          end_date: string
+          notes?: string | null
+          is_finalized?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          trip_id?: string
+          proposed_by?: string
+          title?: string
+          start_date?: string
+          end_date?: string
+          notes?: string | null
+          is_finalized?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "date_proposals_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "date_proposals_proposed_by_fkey"
+            columns: ["proposed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      destination_proposals: {
+        Row: {
+          id: string
+          trip_id: string
+          date_proposal_id: string | null
+          proposed_by: string
+          destination_name: string
+          destination_description: string | null
+          destination_notes: string | null
+          is_finalized: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          trip_id: string
+          date_proposal_id?: string | null
+          proposed_by: string
+          destination_name: string
+          destination_description?: string | null
+          destination_notes?: string | null
+          is_finalized?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          trip_id?: string
+          date_proposal_id?: string | null
+          proposed_by?: string
+          destination_name?: string
+          destination_description?: string | null
+          destination_notes?: string | null
+          is_finalized?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "destination_proposals_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "destination_proposals_date_proposal_id_fkey"
+            columns: ["date_proposal_id"]
+            isOneToOne: false
+            referencedRelation: "date_proposals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "destination_proposals_proposed_by_fkey"
+            columns: ["proposed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      proposal_discussions: {
+        Row: {
+          id: string
+          trip_id: string
+          date_proposal_id: string | null
+          destination_proposal_id: string | null
+          parent_comment_id: string | null
+          user_id: string
+          comment_text: string
+          is_edited: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          trip_id: string
+          date_proposal_id?: string | null
+          destination_proposal_id?: string | null
+          parent_comment_id?: string | null
+          user_id: string
+          comment_text: string
+          is_edited?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          trip_id?: string
+          date_proposal_id?: string | null
+          destination_proposal_id?: string | null
+          parent_comment_id?: string | null
+          user_id?: string
+          comment_text?: string
+          is_edited?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_discussions_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposal_discussions_date_proposal_id_fkey"
+            columns: ["date_proposal_id"]
+            isOneToOne: false
+            referencedRelation: "date_proposals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposal_discussions_destination_proposal_id_fkey"
+            columns: ["destination_proposal_id"]
+            isOneToOne: false
+            referencedRelation: "destination_proposals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposal_discussions_parent_comment_id_fkey"
+            columns: ["parent_comment_id"]
+            isOneToOne: false
+            referencedRelation: "proposal_discussions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposal_discussions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      proposal_votes: {
+        Row: {
+          id: string
+          trip_id: string
+          date_proposal_id: string | null
+          destination_proposal_id: string | null
+          user_id: string
+          vote_type: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          trip_id: string
+          date_proposal_id?: string | null
+          destination_proposal_id?: string | null
+          user_id: string
+          vote_type: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          trip_id?: string
+          date_proposal_id?: string | null
+          destination_proposal_id?: string | null
+          user_id?: string
+          vote_type?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_votes_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposal_votes_date_proposal_id_fkey"
+            columns: ["date_proposal_id"]
+            isOneToOne: false
+            referencedRelation: "date_proposals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposal_votes_destination_proposal_id_fkey"
+            columns: ["destination_proposal_id"]
+            isOneToOne: false
+            referencedRelation: "destination_proposals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposal_votes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       shopping_list_recipe_items: {
         Row: {
           id: string
@@ -766,6 +1104,41 @@ export type Database = {
           success: boolean
           trip_id: string | null
           error_message: string | null
+        }
+      }
+      get_effective_availability: {
+        Args: {
+          p_trip_id: string
+          p_user_id: string
+          p_date: string
+        }
+        Returns: string
+      }
+      get_trip_availability_heatmap: {
+        Args: {
+          p_trip_id: string
+          p_start_date: string
+          p_end_date: string
+        }
+        Returns: {
+          date: string
+          total_members: number
+          available_count: number
+          unavailable_count: number
+          availability_percentage: number
+        }[]
+      }
+      get_proposal_stats: {
+        Args: {
+          p_date_proposal_id?: string
+          p_destination_proposal_id?: string
+        }
+        Returns: {
+          upvotes: number
+          downvotes: number
+          neutral_votes: number
+          total_votes: number
+          net_score: number
         }
       }
     }

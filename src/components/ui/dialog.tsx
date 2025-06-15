@@ -60,12 +60,11 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "fixed inset-0 z-50 grid w-full h-full gap-4 p-4 border shadow-lg bg-white text-black opacity-100 dark:bg-zinc-900 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 duration-200 sm:top-[50%] sm:left-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:max-w-lg sm:rounded-lg sm:p-6 sm:w-full sm:h-auto sm:max-h-[85vh] sm:overflow-y-auto",
+          "fixed inset-0 z-50 grid w-full h-full gap-4 p-4 border shadow-lg bg-white text-black opacity-100 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 duration-200 sm:top-[50%] sm:left-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:max-w-4xl sm:rounded-lg sm:p-6 sm:w-full sm:h-auto sm:max-h-[85vh] sm:overflow-y-auto",
           className
         )}
         {...props}
       >
-        <div style={{ fontWeight: 'bold', fontSize: 24, color: 'red' }}>MODAL CONTENT DEBUG VISIBLE</div>
         {children}
         {showCloseButton && (
           <DialogPrimitive.Close
