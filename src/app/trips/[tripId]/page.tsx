@@ -137,19 +137,19 @@ function TripDetailPageContent() {
 
   return (
     <div className="container mx-auto p-4 space-y-6">
-      <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-3xl font-bold mb-1">{trip.name}</h1>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+        <div className="flex-1">
+          <h1 className="text-2xl sm:text-3xl font-bold mb-2">{trip.name}</h1>
           <p className="text-gray-600 mb-2">{trip.description || "No description provided."}</p>
           <p className="text-sm text-gray-500 mb-3">
             Dates: {trip.start_date && trip.end_date ? `${new Date(trip.start_date).toLocaleDateString()} to ${new Date(trip.end_date).toLocaleDateString()}` : "To Be Decided"}
           </p>
         </div>
-        <div className="flex space-x-2">
+        <div className="flex flex-col sm:flex-row gap-2 sm:space-x-2">
           {canDelete && (
             <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
               <DialogTrigger asChild>
-                <Button variant="destructive" size="sm">
+                <Button variant="destructive" className="w-full sm:w-auto min-h-[44px]">
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete Trip
                 </Button>
@@ -176,7 +176,7 @@ function TripDetailPageContent() {
               </DialogContent>
             </Dialog>
           )}
-          <Button onClick={() => router.push("/trips")}>Back to My Trips</Button>
+          <Button onClick={() => router.push("/trips")} variant="outline" className="w-full sm:w-auto min-h-[44px]">Back to My Trips</Button>
         </div>
       </div>
 
@@ -186,11 +186,14 @@ function TripDetailPageContent() {
             <CardTitle>Members</CardTitle>
             <CardDescription>Users participating in this trip.</CardDescription>
           </div>
-          {canInvite && (<>
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="outline"><UserPlus className="mr-2 h-4 w-4" /> Invite Member</Button>
-              </DialogTrigger>
+          {canInvite && (
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="min-h-[44px]">
+                    <UserPlus className="mr-2 h-4 w-4" /> Invite Member
+                  </Button>
+                </DialogTrigger>
               <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                   <DialogTitle>Invite New Member</DialogTitle>
@@ -202,18 +205,18 @@ function TripDetailPageContent() {
               </DialogContent>
             </Dialog>
 
-            <Button 
-              onClick={handleGenerateInviteLink} 
-              variant="outline" 
-              className="ml-2"
-              disabled={isGeneratingLink}
-            >
-              <LinkIcon className="mr-2 h-4 w-4" /> 
-              {isGeneratingLink ? "Generating..." : "Create Invite Link"}
-            </Button>
+              <Button 
+                onClick={handleGenerateInviteLink} 
+                variant="outline" 
+                className="min-h-[44px]"
+                disabled={isGeneratingLink}
+              >
+                <LinkIcon className="mr-2 h-4 w-4" /> 
+                {isGeneratingLink ? "Generating..." : "Create Invite Link"}
+              </Button>
 
-            {/* Dialog to display the generated invite link */}
-            <Dialog open={isInviteLinkDialogOpen} onOpenChange={setIsInviteLinkDialogOpen}>
+              {/* Dialog to display the generated invite link */}
+              <Dialog open={isInviteLinkDialogOpen} onOpenChange={setIsInviteLinkDialogOpen}>
               <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                   <DialogTitle>Share this Invite Link</DialogTitle>
@@ -231,8 +234,9 @@ function TripDetailPageContent() {
                     Close
                   </Button>
               </DialogContent>
-            </Dialog>
-          </>)}
+              </Dialog>
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           {members.length > 0 ? (

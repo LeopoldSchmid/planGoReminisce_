@@ -59,7 +59,7 @@ function DashboardPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         <Card>
           <CardHeader>
             <CardTitle>My Trips</CardTitle>
@@ -73,7 +73,7 @@ function DashboardPage() {
               {trips.length === 1 ? "Trip" : "Trips"} in total
             </p>
             <Link href="/trips">
-              <Button className="w-full">View All Trips</Button>
+              <Button className="w-full min-h-[44px]">View All Trips</Button>
             </Link>
           </CardContent>
         </Card>
@@ -83,14 +83,14 @@ function DashboardPage() {
             <CardTitle>Quick Actions</CardTitle>
             <CardDescription>Common tasks</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="space-y-3">
             <Link href="/trips/new">
-              <Button className="w-full" variant="outline">
+              <Button className="w-full min-h-[44px]" variant="outline">
                 Create New Trip
               </Button>
             </Link>
             <Link href="/profile">
-              <Button className="w-full" variant="outline">
+              <Button className="w-full min-h-[44px]" variant="outline">
                 Edit Profile
               </Button>
             </Link>
@@ -125,7 +125,7 @@ function DashboardPage() {
                     <p className="text-sm text-gray-600">{trip.description || "No description"}</p>
                   </div>
                   <Link href={`/trips/${trip.id}`}>
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" className="min-h-[40px] px-4">
                       View
                     </Button>
                   </Link>
@@ -135,7 +135,7 @@ function DashboardPage() {
             {trips.length > 3 && (
               <div className="mt-4 text-center">
                 <Link href="/trips">
-                  <Button variant="ghost">View All Trips</Button>
+                  <Button variant="ghost" className="min-h-[44px]">View All Trips</Button>
                 </Link>
               </div>
             )}

@@ -75,13 +75,12 @@ export default function DashboardLayout({
               </Button>
             </div>
 
-            {/* Mobile menu button */}
+            {/* Mobile menu button - larger touch target */}
             <div className="md:hidden flex items-center">
               <Button
                 variant="ghost"
-                size="sm"
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"
+                className="inline-flex items-center justify-center p-3 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 min-h-[44px] min-w-[44px]"
               >
                 {isMobileMenuOpen ? (
                   <X className="h-6 w-6" />
@@ -92,38 +91,37 @@ export default function DashboardLayout({
             </div>
           </div>
 
-          {/* Mobile menu */}
+          {/* Mobile menu - improved touch targets */}
           {isMobileMenuOpen && (
             <div className="md:hidden">
               <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 border-t border-gray-200">
                 <Link
                   href="/trips"
-                  className="text-gray-900 hover:text-blue-600 block px-3 py-2 rounded-md text-base font-medium transition-colors"
+                  className="text-gray-900 hover:text-blue-600 block px-4 py-3 rounded-md text-base font-medium transition-colors min-h-[44px] flex items-center"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   My Trips
                 </Link>
                 <Link
                   href="/profile"
-                  className="text-gray-900 hover:text-blue-600 block px-3 py-2 rounded-md text-base font-medium transition-colors"
+                  className="text-gray-900 hover:text-blue-600 block px-4 py-3 rounded-md text-base font-medium transition-colors min-h-[44px] flex items-center"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   Profile
                 </Link>
-                <div className="border-t border-gray-200 pt-4 pb-3">
-                  <div className="px-3 py-2">
+                <div className="border-t border-gray-200 pt-4 pb-3 mt-4">
+                  <div className="px-4 py-2">
                     <p className="text-sm text-gray-700">Signed in as</p>
-                    <p className="text-sm font-medium text-gray-900">{user.email}</p>
+                    <p className="text-sm font-medium text-gray-900 truncate">{user.email}</p>
                   </div>
-                  <div className="px-3">
+                  <div className="px-4 pt-2">
                     <Button 
                       onClick={() => {
                         handleSignOut();
                         setIsMobileMenuOpen(false);
                       }} 
                       variant="outline" 
-                      size="sm"
-                      className="w-full"
+                      className="w-full min-h-[44px]"
                     >
                       Sign Out
                     </Button>
