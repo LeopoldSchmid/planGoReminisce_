@@ -2,10 +2,12 @@
 
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { signOut } from "@/services/authService";
+import { LoadingSpinner } from "@/components/common/LoadingSpinner";
+import { Menu, X } from "lucide-react";
 
 export default function DashboardLayout({
   children,
@@ -14,6 +16,7 @@ export default function DashboardLayout({
 }) {
   const { user, isLoading } = useAuth();
   const router = useRouter();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -31,14 +34,7 @@ export default function DashboardLayout({
   };
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner fullscreen message="Loading your dashboard..." size="lg" />;
   }
 
   if (!user) {
@@ -54,31 +50,91 @@ export default function DashboardLayout({
               <Link href="/" className="text-xl font-bold text-blue-600">
                 Plangoreminisce
               </Link>
-              <div className="ml-10 flex items-baseline space-x-4">
+              {/* Desktop Navigation */}
+              <div className="hidden md:ml-10 md:flex md:items-baseline md:space-x-4">
                 <Link
                   href="/trips"
-                  className="text-gray-900 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium"
+                  className="text-gray-900 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
                 >
                   My Trips
                 </Link>
                 <Link
                   href="/profile"
-                  className="text-gray-900 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium"
+                  className="text-gray-900 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
                 >
                   Profile
                 </Link>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-gray-700">Welcome, {user.email}</span>
+            
+            {/* Desktop User Menu */}
+            <div className="hidden md:flex md:items-center md:space-x-4">
+              <span className="text-gray-700 text-sm">Welcome, {user.email}</span>
               <Button onClick={handleSignOut} variant="outline" size="sm">
                 Sign Out
               </Button>
             </div>
+
+            {/* Mobile menu button */}
+            <div className="md:hidden flex items-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"
+              >
+                {isMobileMenuOpen ? (
+                  <X className="h-6 w-6" />
+                ) : (
+                  <Menu className="h-6 w-6" />
+                )}
+              </Button>
+            </div>
           </div>
+
+          {/* Mobile menu */}
+          {isMobileMenuOpen && (
+            <div className="md:hidden">
+              <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 border-t border-gray-200">
+                <Link
+                  href="/trips"
+                  className="text-gray-900 hover:text-blue-600 block px-3 py-2 rounded-md text-base font-medium transition-colors"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  My Trips
+                </Link>
+                <Link
+                  href="/profile"
+                  className="text-gray-900 hover:text-blue-600 block px-3 py-2 rounded-md text-base font-medium transition-colors"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Profile
+                </Link>
+                <div className="border-t border-gray-200 pt-4 pb-3">
+                  <div className="px-3 py-2">
+                    <p className="text-sm text-gray-700">Signed in as</p>
+                    <p className="text-sm font-medium text-gray-900">{user.email}</p>
+                  </div>
+                  <div className="px-3">
+                    <Button 
+                      onClick={() => {
+                        handleSignOut();
+                        setIsMobileMenuOpen(false);
+                      }} 
+                      variant="outline" 
+                      size="sm"
+                      className="w-full"
+                    >
+                      Sign Out
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </nav>
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+      <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         {children}
       </main>
     </div>

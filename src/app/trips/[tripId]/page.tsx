@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/avatar";
 import { UserPlus, LinkIcon, Trash2 } from 'lucide-react';
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 
 function TripDetailPageContent() {
   const router = useRouter();
@@ -83,7 +84,7 @@ function TripDetailPageContent() {
   });
 
   if (isLoadingTrip || isLoadingMembers) {
-    return <div className="container mx-auto p-4 text-center">Loading trip details...</div>;
+    return <LoadingSpinner message="Loading trip details..." />;
   }
 
   if (tripError || !tripData?.trip) {

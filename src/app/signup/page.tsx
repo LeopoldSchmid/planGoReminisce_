@@ -63,7 +63,8 @@ export default function SignUpPage() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen">
+    <div className="min-h-screen bg-gray-50">
+      <div className="flex items-center justify-center min-h-screen">
       <AuthForm
         type="signup"
         schema={formSchema as any}
@@ -71,6 +72,7 @@ export default function SignUpPage() {
         loading={loading}
         error={error || message}
       />
+      </div>
     </div>
   );
 }

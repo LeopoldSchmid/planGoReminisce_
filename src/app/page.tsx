@@ -7,10 +7,12 @@ import { useAuth } from "@/context/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { getUserTrips } from "@/services/tripService";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 
 function HomePage() {
   return (
-    <div className="container mx-auto py-12">
+    <div className="min-h-screen bg-gray-50">
+      <div className="container mx-auto py-12">
       <Card className="max-w-2xl mx-auto">
         <CardHeader>
           <CardTitle>Welcome to Plangoreminisce</CardTitle>
@@ -29,6 +31,7 @@ function HomePage() {
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }
@@ -147,14 +150,7 @@ export default function Home() {
   const { user, isLoading } = useAuth();
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner fullscreen message="Loading..." size="lg" />;
   }
 
   if (user) {
