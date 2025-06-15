@@ -1,0 +1,102 @@
+# UI/UX Overhaul Plan for Trip Planning App
+
+## Progress & Highlights
+- [x] Plan written and reviewed
+- [x] Refactor navigation to use bottom nav (mobile) and tabs/sidebar (desktop)
+- [x] Redesign cards and section layouts for chunking and clarity (Global card styles updated in `src/components/ui/card.tsx`)
+- [ ] Implement expandable/accordion sections and micro-interactions (Shopping List Card started)
+- [ ] Test for accessibility and responsiveness
+
+---
+
+## General Guidelines
+- **Prioritization:** Make the most important information and actions prominent at all times.
+- **Chunking:** Break large blocks of information into smaller, digestible cards or sections.
+- **Visual Hierarchy:** Use size, color, spacing, and typography to guide the user's eye and indicate importance.
+- **Consistency:** Maintain consistent design elements (buttons, icons, typography) throughout the app.
+- **Feedback:** Provide clear, immediate feedback for user actions.
+- **Accessibility:** Ensure sufficient contrast, clear labels, and large touch targets for all users.
+- **Mobile First:** Design and implement for mobile screens first, then progressively enhance for larger screens.
+
+---
+
+## Concrete Tasks
+
+### Phase 1: Core Layout & Navigation
+- **Task 1.1: Implement Mobile Bottom Navigation**
+  - [x] Create/Refactor navigation in `DashboardLayout.tsx` for mobile bottom bar.
+  - [x] Define primary mobile navigation routes: "Plan" (`/trips`), "Go" (`/trips/[tripId]/go` - placeholder), "Reminisce" (`/trips/[tripId]/reminisce` - placeholder), "More" (`/profile` or new settings page).
+  - [x] Add relevant Lucide icons and active state styling to mobile nav links.
+- **Task 1.2: Implement Desktop Top-Level Tabs/Sidebar**
+  - [x] Refactor desktop navigation in `DashboardLayout.tsx` to use top-level tabs for "Plan", "Go", and "Reminisce".
+  - [ ] Create placeholder pages for "Go" and "Reminisce" content if they don't exist (e.g., `src/app/trips/[tripId]/go/page.tsx`, `src/app/trips/[tripId]/reminisce/page.tsx`).
+  - [ ] (Optional) Integrate a left-hand sidebar for deeper navigation within the "Plan" phase (e.g., Itinerary, Travelers, Budget, Recipes, Shopping Lists, Expenses).
+- **Task 1.3: Centralize Trip Overview Dashboard Content**
+  - [ ] Ensure `src/app/trips/[tripId]/page.tsx` acts as the main "Plan" overview, displaying summary cards for each section (e.g., "Members", "Expenses Summary", "Shopping List Snapshot").
+
+### Phase 2: Component Redesign & Refinements
+- **Task 2.1: Enhance Global Card Styles**
+  - [x] Update `src/components/ui/card.tsx` to apply `rounded-2xl`, `py-8 px-6`, `shadow-lg`, `hover:shadow-xl` to `Card`.
+  - [x] Adjust `CardHeader`, `CardContent`, `CardFooter` paddings/margins for more white space and visual clarity (`px-0 md:px-2`).
+  - [x] Refine `CardTitle` (`font-bold text-lg md:text-xl`) and `CardDescription` (`text-base md:text-lg`) typography.
+- **Task 2.2: Redesign Member Cards**
+  - [x] In `src/app/trips/[tripId]/page.tsx`, ensure the member list is compact and uses `Avatar` components.
+  - [x] Display member name and role compactly (e.g., `username (role)` or `username` with role as smaller text).
+  - [ ] If applicable, integrate `RetroactiveExpenseManager` as a compact icon/button within each member item for quick access.
+- **Task 2.3: Redesign Shopping List Cards**
+  - [x] In `src/components/shopping/ShoppingListCard.tsx`, ensure the card header is compact, showing list name, description preview, and item count.
+  - [x] Implement `showDetails` state and accordion animation for toggling the visibility of list items.
+  - [x] Style individual `ShoppingListItem` components for compactness and clarity (checkbox, name, quantity/unit, assigned to, purchased by, delete button).
+  - [x] Fix unit type handling in `AddItemFormData` and `handleAddItem` to use `Unit` from `@/types` correctly, converting `Input` to `select` for units.
+- **Task 2.4: Redesign Expense Cards**
+  - [ ] In `src/components/expenses/ExpenseCard.tsx`, create a compact header summarizing key expense info (name, total amount, paid by, date, category) using icons.
+  - [ ] Implement an expandable section for participants and payment history with accordion animation.
+  - [ ] Style participants and payments within the expandable section for compactness.
+- **Task 2.5: Redesign Recipe Cards**
+  - [ ] In `src/components/recipes/RecipeCard.tsx`, create a compact header (name, servings, total time, description preview).
+  - [ ] Implement an expandable section for ingredients and instructions with accordion animation.
+  - [ ] Style ingredients and instructions within the expandable section for readability and visual organization.
+
+### Phase 3: Interactive Elements & Overall Polish
+- **Task 3.1: Implement Floating Action Button (FAB)**
+  - [ ] Create a reusable FAB component (e.g., `src/components/common/Fab.tsx`).
+  - [ ] Integrate FAB into `src/app/trips/[tripId]/page.tsx` for adding new items (activities, expenses, notes, recipes, shopping lists) with a sub-menu of actions.
+- **Task 3.2: Enhance Date/Time Pickers**
+  - [ ] Review all date and time input fields in forms (e.g., trip creation, expense, recipe forms).
+  - [ ] Replace manual inputs with intuitive Shadcn UI `DatePicker` components where appropriate.
+- **Task 3.3: Status Indicators & Visual Cues**
+  - [ ] Review all item lists (shopping items, expenses, activities, recipe ingredients).
+  - [ ] Ensure clear and consistent visual status indicators (e.g., checkboxes for purchased, colored badges for expense status, roles).
+  - [ ] Consistently use relevant Lucide icons to improve scannability.
+- **Task 3.4: Confirmation Messages & Toasts**
+  - [ ] Verify that `sonner` toasts are used consistently for success, error, and loading feedback across all user actions.
+
+### Phase 4: Responsiveness & Accessibility
+- **Task 4.1: Comprehensive Responsiveness Check**
+  - [ ] Conduct a thorough review of all redesigned components and layouts across various screen sizes (mobile, tablet, small desktop, large desktop).
+  - [ ] Adjust Tailwind CSS classes and flex/grid layouts as needed to ensure optimal display and user experience on all devices.
+- **Task 4.2: Accessibility Audit & Fixes**
+  - [ ] Ensure all interactive elements (buttons, links, form fields, expandable sections) have proper ARIA attributes (e.g., `aria-label`, `aria-expanded`, `aria-controls`).
+  - [ ] Verify sufficient color contrast for all text and UI elements.
+  - [ ] Ensure full keyboard navigation support for all interactive components.
+  - [ ] Add `sr-only` text for purely decorative icons or where visual context is insufficient.
+- **Task 4.3: Dark Mode Implementation (Stretch Goal)**
+  - [ ] Implement a global dark mode toggle.
+  - [ ] Ensure all components and styles adapt correctly to dark mode.
+
+---
+
+## 5. "Plan, Go, Reminisce" Concept Integration (Conceptual/Future)
+- **Phase 5.1: "Go" Tab/Page Development**
+  - [ ] Design and implement a dedicated "Go" page for live trip information.
+  - [ ] Include components for real-time itinerary updates, quick expense entry during the trip, and emergency contacts.
+- **Phase 5.2: "Reminisce" Tab/Page Development**
+  - [ ] Design and implement a dedicated "Reminisce" page for post-trip content.
+  - [ ] Integrate placeholders for features for photo albums, final budget summaries, and trip reflections.
+
+---
+
+## Next Steps (Updated)
+1. Continue with **Task 2.4: Redesign Expense Cards**.
+2. Then proceed to **Task 2.5: Redesign Recipe Cards**.
+3. Continue through subsequent tasks in order.
