@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
 import { getTripById, getTripMembers, TripMemberWithProfile, generateTripInvitationLink, deleteTrip } from "@/services/tripService";
+import { getExpensesForTrip } from "@/services/expenseService";
 import { toast } from "sonner";
 import { InviteMemberForm } from "@/components/trips/InviteMemberForm";
 import { Input } from "@/components/ui/input";
@@ -33,6 +34,11 @@ import {
 import { UserPlus, LinkIcon, Trash2 } from 'lucide-react';
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
+import { ShoppingListsSection } from "@/components/shopping/ShoppingListsSection";
+import { AggregatedShoppingView } from "@/components/shopping/AggregatedShoppingView";
+import { ExpensesSection } from "@/components/expenses/ExpensesSection";
+import { RetroactiveExpenseManager } from "@/components/expenses/RetroactiveExpenseManager";
+import { RecipesSection } from "@/components/recipes/RecipesSection";
 
 function TripDetailPageContent() {
   const router = useRouter();
@@ -61,6 +67,12 @@ function TripDetailPageContent() {
       return getTripMembers(tripId, user.id);
     },
     enabled: !!tripId && !!user?.id,
+  });
+
+  const { data: expensesData } = useQuery({
+    queryKey: ["expenses", tripId],
+    queryFn: () => getExpensesForTrip(tripId),
+    enabled: !!tripId,
   });
 
   const deleteMutation = useMutation({
@@ -240,38 +252,88 @@ function TripDetailPageContent() {
         </CardHeader>
         <CardContent>
           {members.length > 0 ? (
-            <ul className="space-y-3">
-              {members.map((member: TripMemberWithProfile) => (
-                <li key={member.user_id} className="flex items-center justify-between p-2 border rounded-md">
-                  <div className="flex items-center space-x-3">
-                    <Avatar>
-                      <AvatarImage src={member.avatar_url || undefined} alt={member.username || 'User Avatar'} />
-                      <AvatarFallback>{member.username ? member.username.substring(0, 2).toUpperCase() : 'U'}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">{member.username || 'Unnamed User'}</p>
-                      <p className="text-xs text-gray-500">Role: {member.role}</p>
+            <div className="space-y-4">
+              <ul className="space-y-3">
+                {members.map((member: TripMemberWithProfile) => (
+                  <li key={member.user_id} className="flex items-center justify-between p-2 border rounded-md">
+                    <div className="flex items-center space-x-3">
+                      <Avatar>
+                        <AvatarImage src={member.avatar_url || undefined} alt={member.username || 'User Avatar'} />
+                        <AvatarFallback>{member.username ? member.username.substring(0, 2).toUpperCase() : 'U'}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium">{member.username || 'Unnamed User'}</p>
+                        <p className="text-xs text-gray-500">Role: {member.role}</p>
+                      </div>
                     </div>
-                  </div>
-                  {/* Placeholder for future actions like 'Remove member' or 'Change role' */}
-                </li>
-              ))}
-            </ul>
+                    <div className="flex items-center gap-2">
+                      {canInvite && expensesData?.expenses && expensesData.expenses.length > 0 && (
+                        <RetroactiveExpenseManager
+                          expenses={expensesData.expenses}
+                          tripMembers={members.map(m => ({
+                            user_id: m.user_id,
+                            username: m.username,
+                            full_name: m.full_name,
+                          }))}
+                          newMember={{
+                            user_id: member.user_id,
+                            username: member.username,
+                            full_name: member.full_name,
+                          }}
+                        />
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
           ) : (
             <p className="text-gray-500">No members yet. Invite someone to join!</p>
           )}
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Trip Features</CardTitle>
-          <CardDescription>Shopping lists, expenses, and more coming soon.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-gray-500">(Placeholder for feature links/summaries)</p>
-        </CardContent>
-      </Card>
+      <RecipesSection 
+        tripId={trip.id}
+        tripMembers={members.map(member => ({
+          user_id: member.user_id,
+          username: member.username,
+          full_name: member.full_name,
+        }))}
+        currentUserRole={currentUserMemberInfo?.role}
+      />
+
+      <ShoppingListsSection 
+        tripId={trip.id}
+        tripMembers={members.map(member => ({
+          user_id: member.user_id,
+          username: member.username,
+          full_name: member.full_name,
+          avatar_url: member.avatar_url,
+          role: member.role
+        }))}
+        currentUserRole={currentUserMemberInfo?.role}
+      />
+
+      <AggregatedShoppingView 
+        tripId={trip.id}
+        tripMembers={members.map(member => ({
+          user_id: member.user_id,
+          username: member.username,
+          full_name: member.full_name,
+        }))}
+      />
+
+      <ExpensesSection 
+        tripId={trip.id}
+        tripMembers={members.map(member => ({
+          user_id: member.user_id,
+          username: member.username,
+          full_name: member.full_name,
+          role: member.role
+        }))}
+        currentUserRole={currentUserMemberInfo?.role}
+      />
     </div>
   );
 }
