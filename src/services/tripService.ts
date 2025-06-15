@@ -182,36 +182,36 @@ export async function inviteMemberByEmail(
     return { member: null, error: { message: 'Permission denied: Only trip owners or co-owners can invite members.' } };
   }
 
-  // 2. Get invitee's user_id from email.
-  //    IMPORTANT: This step requires a Supabase Edge Function or RPC call
-  //    to securely query auth.users by email.
-  //    For now, we'll simulate this and assume we get an ID.
-  //    Replace this with a call to your Supabase function, e.g.,
-  //    const { data: inviteeUserData, error: inviteeUserError } = await supabase.functions.invoke('get-user-by-email', { email: inviteeEmail });
-  
-  console.warn("SIMULATING get user_id from email. Replace with secure Supabase function call.");
-  // Placeholder: In a real scenario, you'd call a Supabase function here.
-  // This is a simplified and insecure way to do it for local testing if RLS allows profile reads.
-  // DO NOT use this approach in production for querying users by email from the client.
-  const { data: inviteeProfile, error: inviteeProfileError } = await supabase
-    .from('profiles') // Assuming email is in profiles and readable by authenticated users for this example
-    .select('id')
-    .eq('email', inviteeEmail) // This assumes 'email' field exists and is unique in 'profiles'
-    .single();
+  // 2. Get invitee's user_id from email using RPC call.
+  // The return type of `data` from `supabase.rpc` will be inferred from your generated types.
+  // If `get_user_id_by_email` is correctly typed in `supabase.ts` to return `string | null` (or `UUID | null`),
+  // then `inviteeUserIdFromRpc` should have that type.
+  const { data: inviteeUserIdFromRpc, error: rpcError } = await supabase.rpc(
+    'get_user_id_by_email',
+    { user_email: inviteeEmail } 
+  );
 
-  if (inviteeProfileError || !inviteeProfile) {
-    console.error('Error finding user by email or user does not exist:', inviteeProfileError);
-    return { member: null, error: { message: `User with email ${inviteeEmail} not found.` } };
+  if (rpcError) {
+    console.error('Error calling get_user_id_by_email RPC:', rpcError);
+    // It's good practice to check the specific error type if Supabase provides one for RPC not found vs. other errors.
+    return { member: null, error: { message: `Error looking up user: ${rpcError.message}` } };
   }
-  const inviteeUserId = inviteeProfile.id;
-  // End of placeholder for getting user_id from email
+
+  // `inviteeUserIdFromRpc` will be null if the function returns NULL (email not found), or the UUID string if found.
+  if (!inviteeUserIdFromRpc) {
+    console.log(`User with email ${inviteeEmail} not found in auth.users.`);
+    return { member: null, error: { message: `User with email ${inviteeEmail} not found. Consider sending an invitation link.` } };
+  }
+  
+  // Ensure inviteeUserId is treated as a string for subsequent Supabase client calls.
+  const finalInviteeUserId: string = inviteeUserIdFromRpc as string;
 
   // 3. Check if invitee is already a member
   const { data: existingMember, error: existingMemberError } = await supabase
     .from('trip_members')
     .select('id')
     .eq('trip_id', tripId)
-    .eq('user_id', inviteeUserId)
+    .eq('user_id', finalInviteeUserId) // Use the correctly typed and non-null user ID
     .maybeSingle();
 
   if (existingMemberError) {
@@ -228,9 +228,9 @@ export async function inviteMemberByEmail(
     .from('trip_members')
     .insert({
       trip_id: tripId,
-      user_id: inviteeUserId,
+      user_id: finalInviteeUserId, // Use the correctly typed and non-null user ID
       role: 'member', // Default role for new invites
-    } as TripMemberInsert)
+    } as TripMemberInsert) // The cast to TripMemberInsert might need adjustment if types are very strict
     .select()
     .single();
 
@@ -240,4 +240,80 @@ export async function inviteMemberByEmail(
   }
 
   return { member: newMember, error: null };
+}
+
+// New type for the return of generateTripInvitationLink
+export type TripInvitationLinkResult = {
+  invitationLink: string | null; // e.g., https://yourdomain.com/join-trip?token=THE_TOKEN
+  error: any;
+};
+
+/**
+ * Generates a trip invitation link by calling the create_trip_invitation RPC.
+ * @param tripId The ID of the trip for which to generate an invitation.
+ * @param invitedEmail Optional email of the person being invited (for tracking).
+ * @returns An object containing the full invitationLink or an error.
+ */
+export async function generateTripInvitationLink(
+  tripId: string,
+  invitedEmail?: string
+): Promise<TripInvitationLinkResult> {
+  const { data: token, error: rpcError } = await supabase.rpc('create_trip_invitation', {
+    p_trip_id: tripId,
+    p_invited_email: invitedEmail || null, // Ensure null is passed if undefined
+  });
+
+  if (rpcError) {
+    console.error('Error calling create_trip_invitation RPC:', rpcError);
+    return { invitationLink: null, error: { message: `Failed to create invitation: ${rpcError.message}` } };
+  }
+
+  if (!token) {
+    // This case should ideally be handled by the RPC raising an exception if token generation fails
+    console.error('Create_trip_invitation RPC returned no token without an error.');
+    return { invitationLink: null, error: { message: 'Failed to generate invitation token.' } };
+  }
+
+  // Construct the full URL. Replace 'http://localhost:3000' with your actual app URL,
+  // possibly from an environment variable.
+  // For now, we'll hardcode a common local development URL structure.
+  // In a real app, this base URL should be configurable.
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const invitationLink = `${baseUrl}/join-trip?token=${token}`;
+
+  return { invitationLink, error: null };
+}
+
+// New type for the return of acceptTripInvitation
+export type AcceptInvitationResult = {
+  tripId: string | null; // The ID of the trip joined
+  error: any;
+};
+
+/**
+ * Accepts a trip invitation by calling the consume_trip_invitation RPC.
+ * @param token The invitation token from the URL.
+ * @returns An object containing the tripId if successful, or an error.
+ */
+export async function acceptTripInvitation(token: string): Promise<AcceptInvitationResult> {
+  if (!token) {
+    return { tripId: null, error: { message: 'Invitation token is required.' } };
+  }
+
+  const { data: tripId, error: rpcError } = await supabase.rpc('consume_trip_invitation', {
+    p_token: token,
+  });
+
+  if (rpcError) {
+    console.error('Error calling consume_trip_invitation RPC:', rpcError);
+    return { tripId: null, error: { message: `Failed to accept invitation: ${rpcError.message}` } };
+  }
+
+  if (!tripId) {
+    // This might happen if the RPC returns null for some reason instead of raising an error for invalid token
+    console.error('Consume_trip_invitation RPC returned no tripId without an error.');
+    return { tripId: null, error: { message: 'Invitation is invalid or could not be processed.' } };
+  }
+
+  return { tripId, error: null };
 }

@@ -67,9 +67,19 @@ To create "Plangoreminisce," a responsive web application designed to simplify a
             *   [x] Input field for user's email.
             *   [x] On submit, call `tripService.inviteMemberByEmail`.
             *   **SECURITY NOTE:** Current `inviteMemberByEmail` uses a placeholder for email-to-userID resolution. **A secure Supabase Edge Function or RPC is required for production.**
-        *   [ ] **Task 8:** Display list of current trip members on the individual trip page.
+        *   [x] **Task 8:** Display list of current trip members on the individual trip page.
         *   [ ] **Task 9 (Stretch for MVP/Phase 2):** Allow Owner/Co-Owner to change member roles or remove members.
         *   [ ] **Task 10 (Stretch for MVP):** Allow members to leave a trip.
+        *   **Invitation Link System (New Feature):**
+            *   [ ] **Task IL1:** Design and implement `trip_invitations` table in Supabase.
+                *   [ ] Schema: `id` (UUID PK), `trip_id` (FK to trips), `token` (TEXT unique), `invited_email` (TEXT nullable), `created_by` (FK to auth.users), `expires_at` (TIMESTAMPTZ), `used_at` (TIMESTAMPTZ nullable), `used_by_user_id` (FK to auth.users nullable), `created_at` (TIMESTAMPTZ).
+            *   [ ] **Task IL2:** Implement Supabase RPC `create_trip_invitation(p_trip_id UUID, p_invited_email TEXT DEFAULT NULL)` to generate and store an invitation token.
+            *   [ ] **Task IL3:** Implement Supabase RPC `consume_trip_invitation(p_token TEXT, p_consumer_user_id UUID)` to validate a token and add user to trip.
+            *   [ ] **Task IL4:** Frontend UI in Trip Detail page for Owners/Co-owners to generate an invitation link (calls `create_trip_invitation`).
+            *   [ ] **Task IL5:** Create a new frontend page (e.g., `/join-trip?token=...` or `/invite?token=...`) to handle invitation links.
+                *   [ ] Handles unauthenticated users (prompt to sign up/login, then consume).
+                *   [ ] Handles authenticated users (calls `consume_trip_invitation`).
+                *   [ ] Redirects to trip page on success, shows error on failure.
     *   **Frontend - Trip Deletion:**
         *   [ ] **Task 11:** Implement "Delete Trip" functionality.
             *   [ ] Button visible only to Owner/Co-Owner.

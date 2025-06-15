@@ -1,62 +1,213 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
+import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/context/AuthContext";
+import { getTripById, getTripMembers, TripMemberWithProfile, generateTripInvitationLink } from "@/services/tripService";
+import { toast } from "sonner";
+import { InviteMemberForm } from "@/components/trips/InviteMemberForm";
+import { Input } from "@/components/ui/input";
+
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogDescription
+} from "@/components/ui/dialog";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@/components/ui/avatar";
+import { UserPlus, LinkIcon } from 'lucide-react';
 
 export default function TripDetailPage() {
-    const router = useRouter();
-    const params = useParams();
-    const tripId = params?.tripId as string;
-    const supabase = createSupabaseBrowserClient();
-    const [trip, setTrip] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+  const params = useParams();
+  const tripId = params?.tripId as string;
+  const { user } = useAuth();
+  const [isInviteLinkDialogOpen, setIsInviteLinkDialogOpen] = useState(false);
+  const [generatedLink, setGeneratedLink] = useState<string>("");
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false);
 
-    useEffect(() => {
-        if (!tripId) return;
-        setLoading(true);
-        supabase
-            .from("trips")
-            .select("*")
-            .eq("id", tripId)
-            .single()
-            .then(({ data, error }) => {
-                if (error) setError(error.message || "Failed to load trip");
-                setTrip(data);
-                setLoading(false);
-            });
-    }, [tripId, supabase]);
+  const { data: tripData, isLoading: isLoadingTrip, error: tripError } = useQuery({
+    queryKey: ["tripDetails", tripId, user?.id],
+    queryFn: () => {
+      if (!tripId || !user?.id) throw new Error("Trip ID or User ID is missing");
+      return getTripById(tripId, user.id);
+    },
+    enabled: !!tripId && !!user?.id,
+  });
 
-    if (loading) {
-        return <div>Loading trip details...</div>;
-    }
-    if (error) {
-        return <div className="text-red-500">{error}</div>;
-    }
-    if (!trip) {
-        return <div>Trip not found.</div>;
-    }
+  const { data: membersData, isLoading: isLoadingMembers, error: membersError } = useQuery({
+    queryKey: ["tripMembers", tripId, user?.id],
+    queryFn: () => {
+      if (!tripId || !user?.id) throw new Error("Trip ID or User ID is missing for members query");
+      return getTripMembers(tripId, user.id);
+    },
+    enabled: !!tripId && !!user?.id,
+  });
 
-    return (
-        <div className="max-w-2xl mx-auto">
-            <div className="mb-6">
-                <h1 className="text-3xl font-bold mb-2">{trip.name}</h1>
-                <div className="text-gray-600 mb-2">{trip.description || "No description provided."}</div>
-                <div className="text-sm text-gray-500 mb-2">
-                    Dates: {trip.start_date && trip.end_date ? `${trip.start_date} to ${trip.end_date}` : "To Be Decided"}
-                </div>
-                <Button onClick={() => router.push("/dashboard/trips")}>Back to My Trips</Button>
-            </div>
-            <div className="border rounded p-4 mb-6">
-                <h2 className="text-xl font-semibold mb-2">Members</h2>
-                <div className="text-gray-500">(Member list and invite functionality coming soon)</div>
-            </div>
-            <div className="border rounded p-4">
-                <h2 className="text-xl font-semibold mb-2">Trip Features</h2>
-                <div className="text-gray-500">(Shopping lists, expenses, and more coming soon)</div>
-            </div>
+  if (isLoadingTrip || isLoadingMembers) {
+    return <div className="container mx-auto p-4 text-center">Loading trip details...</div>;
+  }
+
+  if (tripError || !tripData?.trip) {
+    return <div className="container mx-auto p-4 text-red-500">Error loading trip: {tripError?.message || tripData?.error?.message || "Trip not found or access denied."}</div>;
+  }
+  
+  if (membersError || !membersData) {
+     // It's possible getTripMembers returns empty array if user is not a member, which is handled by tripData check above.
+     // This explicitly checks for an error during member fetching.
+    return <div className="container mx-auto p-4 text-red-500">Error loading members: {membersError?.message || membersData?.error?.message || "Could not load members."}</div>;
+  }
+
+  const trip = tripData.trip;
+  const members = membersData.members || [];
+
+  const currentUserMemberInfo = members.find(member => member.user_id === user?.id);
+  const canInvite = currentUserMemberInfo?.role === 'owner' || currentUserMemberInfo?.role === 'co-owner';
+
+  const handleGenerateInviteLink = async () => {
+    if (!trip) return;
+    setIsGeneratingLink(true);
+    try {
+      const result = await generateTripInvitationLink(trip.id);
+      if (result.error || !result.invitationLink) {
+        toast.error(result.error?.message || "Failed to generate invite link.");
+        setGeneratedLink("");
+      } else {
+        setGeneratedLink(result.invitationLink);
+        setIsInviteLinkDialogOpen(true);
+        toast.success("Invite link generated!");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "An unexpected error occurred.");
+      setGeneratedLink("");
+    }
+    setIsGeneratingLink(false);
+  };
+
+  const handleCopyLink = () => {
+    if (generatedLink) {
+      navigator.clipboard.writeText(generatedLink)
+        .then(() => toast.success("Link copied to clipboard!"))
+        .catch(() => toast.error("Failed to copy link."));
+    }
+  };
+
+  return (
+    <div className="container mx-auto p-4 space-y-6">
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold mb-1">{trip.name}</h1>
+          <p className="text-gray-600 mb-2">{trip.description || "No description provided."}</p>
+          <p className="text-sm text-gray-500 mb-3">
+            Dates: {trip.start_date && trip.end_date ? `${new Date(trip.start_date).toLocaleDateString()} to ${new Date(trip.end_date).toLocaleDateString()}` : "To Be Decided"}
+          </p>
         </div>
-    );
-} 
+        <Button onClick={() => router.push("/dashboard/trips")}>Back to My Trips</Button>
+      </div>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Members</CardTitle>
+            <CardDescription>Users participating in this trip.</CardDescription>
+          </div>
+          {canInvite && (<>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline"><UserPlus className="mr-2 h-4 w-4" /> Invite Member</Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Invite New Member</DialogTitle>
+                  <DialogDescription>
+                    Enter the email address of the user you want to invite to this trip.
+                  </DialogDescription>
+                </DialogHeader>
+                <InviteMemberForm tripId={trip.id} />
+              </DialogContent>
+            </Dialog>
+
+            <Button 
+              onClick={handleGenerateInviteLink} 
+              variant="outline" 
+              className="ml-2"
+              disabled={isGeneratingLink}
+            >
+              <LinkIcon className="mr-2 h-4 w-4" /> 
+              {isGeneratingLink ? "Generating..." : "Create Invite Link"}
+            </Button>
+
+            {/* Dialog to display the generated invite link */}
+            <Dialog open={isInviteLinkDialogOpen} onOpenChange={setIsInviteLinkDialogOpen}>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Share this Invite Link</DialogTitle>
+                  <DialogDescription>
+                    Anyone with this link can join your trip. The link is valid for 7 days.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="flex items-center space-x-2 mt-4">
+                  <Input value={generatedLink} readOnly className="flex-1" />
+                  <Button onClick={handleCopyLink} variant="secondary">
+                    Copy
+                  </Button>
+                </div>
+                 <Button onClick={() => setIsInviteLinkDialogOpen(false)} variant="outline" className="mt-4 w-full">
+                    Close
+                  </Button>
+              </DialogContent>
+            </Dialog>
+          </>)}
+        </CardHeader>
+        <CardContent>
+          {members.length > 0 ? (
+            <ul className="space-y-3">
+              {members.map((member: TripMemberWithProfile) => (
+                <li key={member.user_id} className="flex items-center justify-between p-2 border rounded-md">
+                  <div className="flex items-center space-x-3">
+                    <Avatar>
+                      <AvatarImage src={member.avatar_url || undefined} alt={member.username || 'User Avatar'} />
+                      <AvatarFallback>{member.username ? member.username.substring(0, 2).toUpperCase() : 'U'}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-medium">{member.username || 'Unnamed User'}</p>
+                      <p className="text-xs text-gray-500">Role: {member.role}</p>
+                    </div>
+                  </div>
+                  {/* Placeholder for future actions like 'Remove member' or 'Change role' */}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-gray-500">No members yet. Invite someone to join!</p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Trip Features</CardTitle>
+          <CardDescription>Shopping lists, expenses, and more coming soon.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-gray-500">(Placeholder for feature links/summaries)</p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

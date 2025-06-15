@@ -30,7 +30,7 @@ import { Separator } from '@/components/ui/separator'; // For visual separation
 
 export default function TripDetailPage() {
   const params = useParams();
-  const tripId = params.id as string;
+  const tripId = params.tripId as string;
 
   const [trip, setTrip] = useState<TripDetails | null>(null);
   const [members, setMembers] = useState<TripMemberWithProfile[] | null>(null);
