@@ -1,7 +1,8 @@
 import { CreateTripForm } from "@/components/common/CreateTripForm";
 import React from "react";
+import DashboardLayout from "@/components/layout/DashboardLayout";
 
-export default function NewTripPage() {
+function CreateTripPageContent() {
   return (
     <div className="container mx-auto py-10">
       <div className="flex flex-col items-center">
@@ -9,5 +10,13 @@ export default function NewTripPage() {
         <CreateTripForm />
       </div>
     </div>
+  );
+}
+
+export default function NewTripPage() {
+  return (
+    <DashboardLayout>
+      <CreateTripPageContent />
+    </DashboardLayout>
   );
 }

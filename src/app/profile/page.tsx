@@ -3,8 +3,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/context/AuthContext";
 import { EditProfileForm } from "./EditProfileForm";
+import DashboardLayout from "@/components/layout/DashboardLayout";
 
-export default function ProfilePage() {
+function ProfilePageContent() {
   const { user, profile } = useAuth();
 
   if (!user) {
@@ -59,5 +60,13 @@ export default function ProfilePage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function ProfilePage() {
+  return (
+    <DashboardLayout>
+      <ProfilePageContent />
+    </DashboardLayout>
   );
 }

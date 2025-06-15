@@ -6,9 +6,10 @@ import { useAuth } from "@/context/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { getUserTrips } from "@/services/tripService";
 import { Button } from "@/components/ui/button"; // For "Create New Trip" button
+import DashboardLayout from "@/components/layout/DashboardLayout";
 // import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"; // For TripCard later
 
-export default function TripsPage() {
+function TripsPageContent() {
   const { user, isLoading: authLoading } = useAuth();
 
   const { data: tripsData, isLoading: tripsLoading, error: tripsError } = useQuery({
@@ -70,5 +71,13 @@ export default function TripsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function TripsPage() {
+  return (
+    <DashboardLayout>
+      <TripsPageContent />
+    </DashboardLayout>
   );
 }

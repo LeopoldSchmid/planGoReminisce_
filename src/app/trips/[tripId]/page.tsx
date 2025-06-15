@@ -31,8 +31,9 @@ import {
   AvatarImage,
 } from "@/components/ui/avatar";
 import { UserPlus, LinkIcon, Trash2 } from 'lucide-react';
+import DashboardLayout from "@/components/layout/DashboardLayout";
 
-export default function TripDetailPage() {
+function TripDetailPageContent() {
   const router = useRouter();
   const params = useParams();
   const queryClient = useQueryClient();
@@ -73,7 +74,7 @@ export default function TripDetailPage() {
         toast.success("Trip deleted successfully!");
         // Invalidate trips list and redirect
         queryClient.invalidateQueries({ queryKey: ["userTrips"] });
-        router.push("/dashboard/trips");
+        router.push("/trips");
       }
     },
     onError: (error: Error) => {
@@ -174,7 +175,7 @@ export default function TripDetailPage() {
               </DialogContent>
             </Dialog>
           )}
-          <Button onClick={() => router.push("/dashboard/trips")}>Back to My Trips</Button>
+          <Button onClick={() => router.push("/trips")}>Back to My Trips</Button>
         </div>
       </div>
 
@@ -267,5 +268,13 @@ export default function TripDetailPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function TripDetailPage() {
+  return (
+    <DashboardLayout>
+      <TripDetailPageContent />
+    </DashboardLayout>
   );
 }

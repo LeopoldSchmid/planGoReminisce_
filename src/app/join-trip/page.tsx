@@ -49,7 +49,7 @@ export default function JoinTripPage() {
         setSuccess("Successfully joined the trip!");
         // Redirect to the trip page after a short delay
         setTimeout(() => {
-          router.push(`/dashboard/trips/${result.tripId}`);
+          router.push(`/trips/${result.tripId}`);
         }, 2000);
       } else {
         setError("Unable to process invitation. Please try again.");
@@ -86,7 +86,7 @@ export default function JoinTripPage() {
             <CardDescription>This invitation link appears to be invalid or incomplete.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Link href="/dashboard/trips">
+            <Link href="/trips">
               <Button className="w-full">Go to My Trips</Button>
             </Link>
           </CardContent>
@@ -152,7 +152,7 @@ export default function JoinTripPage() {
             <p className="text-sm text-gray-600 mb-4">
               You will be redirected to the trip page shortly...
             </p>
-            <Link href="/dashboard/trips">
+            <Link href="/trips">
               <Button className="w-full">Go to My Trips</Button>
             </Link>
           </CardContent>
@@ -178,7 +178,7 @@ export default function JoinTripPage() {
               <Button onClick={handleAcceptInvitation} disabled={isProcessing}>
                 Try Again
               </Button>
-              <Link href="/dashboard/trips">
+              <Link href="/trips">
                 <Button variant="outline" className="w-full">Go to My Trips</Button>
               </Link>
             </div>

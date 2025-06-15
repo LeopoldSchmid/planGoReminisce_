@@ -29,7 +29,7 @@ export default function SignUpPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   
-  const redirectTo = searchParams.get('redirect') || '/dashboard';
+  const redirectTo = searchParams.get('redirect') || '/';
 
   async function handleSignUp(formData: AuthFormData) {
     setError(null);

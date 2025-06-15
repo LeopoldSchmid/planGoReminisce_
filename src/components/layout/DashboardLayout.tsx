@@ -51,24 +51,18 @@ export default function DashboardLayout({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
-              <Link href="/dashboard" className="text-xl font-bold text-blue-600">
+              <Link href="/" className="text-xl font-bold text-blue-600">
                 Plangoreminisce
               </Link>
               <div className="ml-10 flex items-baseline space-x-4">
                 <Link
-                  href="/dashboard"
-                  className="text-gray-900 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium"
-                >
-                  Dashboard
-                </Link>
-                <Link
-                  href="/dashboard/trips"
+                  href="/trips"
                   className="text-gray-900 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium"
                 >
                   My Trips
                 </Link>
                 <Link
-                  href="/dashboard/profile"
+                  href="/profile"
                   className="text-gray-900 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium"
                 >
                   Profile
