@@ -3,6 +3,8 @@
 import React, { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
+import type { Unit } from "@/types";
+import { COMMON_UNITS } from "@/types";
 import {
   getShoppingListsForTrip,
   markItemAsPurchased,
@@ -38,17 +40,17 @@ interface AggregatedShoppingViewProps {
 }
 
 interface AggregatedItem {
-  id: string;
+  id: string; // Now the aggregation key (e.g., "apples_kg")
   name: string;
   totalQuantity: number;
-  unit: string | null;
+  unit: Unit;
   category: string | null;
   isPurchased: boolean;
   sources: Array<{
     listName: string;
     quantity: number;
-    unit: string | null;
-    itemId: string;
+    unit: Unit;
+    itemId: string; // Original shopping_list_item.id
     notes?: string | null;
     assignedTo?: string | null;
     fromRecipe?: boolean;
@@ -91,6 +93,16 @@ export function AggregatedShoppingView({ tripId, tripMembers }: AggregatedShoppi
     },
   });
 
+  // Helper to normalize and validate units
+  const toSafeUnit = (dbUnit: string | null): Unit => {
+    const lowerUnit = dbUnit?.toLowerCase() || "";
+    // Check if lowerUnit is one of the known COMMON_UNITS
+    if ((COMMON_UNITS as readonly string[]).includes(lowerUnit)) {
+      return lowerUnit as Unit;
+    }
+    return "" as Unit; // Fallback to empty string Unit if not found or invalid
+  };
+
   // Aggregate items from all shopping lists
   const aggregatedItems = useMemo(() => {
     if (!listsData?.lists) return [];
@@ -99,7 +111,10 @@ export function AggregatedShoppingView({ tripId, tripMembers }: AggregatedShoppi
 
     listsData.lists.forEach(list => {
       list.items?.forEach(item => {
-        const key = `${item.name.toLowerCase()}_${item.unit || 'no-unit'}`;
+        const normalizedItemName = item.name.toLowerCase();
+        const currentItemUnit = toSafeUnit(item.unit);
+        
+        const key = `${normalizedItemName}_${currentItemUnit}`;
         
         if (itemMap.has(key)) {
           const existing = itemMap.get(key)!;
@@ -107,32 +122,32 @@ export function AggregatedShoppingView({ tripId, tripMembers }: AggregatedShoppi
           existing.sources.push({
             listName: list.name,
             quantity: item.quantity || 0,
-            unit: item.unit,
+            unit: currentItemUnit, // Use normalized unit
             itemId: item.id,
             notes: item.notes,
             assignedTo: item.assigned_to,
-            fromRecipe: false, // We'll enhance this later with recipe tracking
+            fromRecipe: !!item.notes?.toLowerCase().includes("from recipe"), // Basic recipe detection from notes
           });
-          // If any source is purchased, mark as purchased
+          // If any source is purchased, mark the aggregated item as purchased
           if (item.is_purchased) {
             existing.isPurchased = true;
           }
         } else {
           itemMap.set(key, {
-            id: item.id, // Use first occurrence ID
-            name: item.name,
+            id: key, // Use the aggregation key as the ID for the aggregated item
+            name: item.name, // Keep original name for display
             totalQuantity: item.quantity || 0,
-            unit: item.unit,
+            unit: currentItemUnit, // Use normalized unit
             category: item.category,
             isPurchased: item.is_purchased,
             sources: [{
               listName: list.name,
               quantity: item.quantity || 0,
-              unit: item.unit,
+              unit: currentItemUnit, // Use normalized unit
               itemId: item.id,
               notes: item.notes,
               assignedTo: item.assigned_to,
-              fromRecipe: false,
+              fromRecipe: !!item.notes?.toLowerCase().includes("from recipe"), // Basic recipe detection
             }],
           });
         }

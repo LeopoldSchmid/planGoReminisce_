@@ -17,6 +17,7 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -35,7 +36,8 @@ import {
   Users, 
   ShoppingCart, 
   Trash2,
-  Eye
+  Eye,
+  Pencil
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -43,9 +45,10 @@ interface RecipeCardProps {
   recipe: RecipeWithIngredients;
   canEdit: boolean;
   onDelete: () => void;
+  onEdit: () => void;
 }
 
-export function RecipeCard({ recipe, canEdit, onDelete }: RecipeCardProps) {
+export function RecipeCard({ recipe, canEdit, onDelete, onEdit }: RecipeCardProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -124,7 +127,7 @@ export function RecipeCard({ recipe, canEdit, onDelete }: RecipeCardProps) {
                 {totalTime > 0 && (
                   <div className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
-                    <span>{formatCookTime(recipe.prep_time_minutes, recipe.cook_time_minutes)}</span>
+                    <span>{formatCookTime(recipe.prep_time_minutes || undefined, recipe.cook_time_minutes || undefined)}</span>
                   </div>
                 )}
               </div>
@@ -138,6 +141,16 @@ export function RecipeCard({ recipe, canEdit, onDelete }: RecipeCardProps) {
               className="text-red-500 hover:text-red-700 min-h-[32px]"
             >
               <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
+          {canEdit && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onEdit} // Call onEdit prop
+              className="text-blue-500 hover:text-blue-700 min-h-[32px] ml-1" // Added ml-1 for spacing
+            >
+              <Pencil className="h-4 w-4" />
             </Button>
           )}
         </div>
@@ -158,8 +171,11 @@ export function RecipeCard({ recipe, canEdit, onDelete }: RecipeCardProps) {
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex flex-wrap gap-2">
+          {/* End of Ingredients Preview div */}
+        </div>
+      </CardContent>
+      <CardFooter className="flex flex-wrap gap-2 pt-4">
+            {/* View Recipe Dialog */}
             <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm" className="min-h-[32px]">
@@ -179,7 +195,7 @@ export function RecipeCard({ recipe, canEdit, onDelete }: RecipeCardProps) {
                   <div className="flex items-center gap-4 text-sm">
                     <Badge variant="secondary">{formatServings(recipe.servings)}</Badge>
                     {totalTime > 0 && (
-                      <Badge variant="outline">{formatCookTime(recipe.prep_time_minutes, recipe.cook_time_minutes)}</Badge>
+                      <Badge variant="outline">{formatCookTime(recipe.prep_time_minutes || undefined, recipe.cook_time_minutes || undefined)}</Badge>
                     )}
                   </div>
 
@@ -190,7 +206,7 @@ export function RecipeCard({ recipe, canEdit, onDelete }: RecipeCardProps) {
                         <li key={index} className="flex justify-between">
                           <span>{ingredient.name}</span>
                           <span className="text-gray-600">
-                            {formatQuantity(ingredient.quantity, ingredient.unit)}
+                            {formatQuantity(ingredient.quantity, ingredient.unit || undefined)}
                             {ingredient.optional && " (optional)"}
                           </span>
                         </li>
@@ -273,9 +289,9 @@ export function RecipeCard({ recipe, canEdit, onDelete }: RecipeCardProps) {
                             <li key={index} className="flex justify-between">
                               <span>{ingredient.name}</span>
                               <span>
-                                {formatQuantity(ingredient.scaledQuantity, ingredient.unit)}
+                                {formatQuantity(ingredient.scaledQuantity, ingredient.unit || undefined)}
                                 <span className="text-gray-500 ml-1">
-                                  (was {formatQuantity(ingredient.originalQuantity, ingredient.unit)})
+                                  (was {formatQuantity(ingredient.originalQuantity, ingredient.unit || undefined)})
                                 </span>
                               </span>
                             </li>
@@ -307,9 +323,8 @@ export function RecipeCard({ recipe, canEdit, onDelete }: RecipeCardProps) {
                 </DialogContent>
               </Dialog>
             )}
-          </div>
-        </div>
-      </CardContent>
+          {/* End of Add to Shopping List Dialog conditional rendering */}
+      </CardFooter>
     </Card>
   );
 }

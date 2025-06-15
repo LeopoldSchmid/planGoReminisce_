@@ -1,5 +1,6 @@
 import { createSupabaseBrowserClient } from '@/lib/supabaseClient';
 import type { Database } from '@/types/supabase';
+import type { Unit } from '@/types';
 
 const supabase = createSupabaseBrowserClient();
 
@@ -161,7 +162,7 @@ export async function addShoppingListItem(params: {
   listId: string;
   name: string;
   quantity?: number;
-  unit?: string;
+  unit?: Unit;
   notes?: string;
   category?: string;
   assignedTo?: string;
@@ -200,32 +201,35 @@ export async function updateShoppingListItem(
   updates: {
     name?: string;
     quantity?: number;
-    unit?: string;
+    unit?: Unit;
     notes?: string;
     category?: string;
-    assigned_to?: string;
+    assigned_to?: string | null;
     is_purchased?: boolean;
-    purchased_by?: string;
+    purchased_by?: string | null;
   }
 ): Promise<{ item: ShoppingListItemRow | null; error: any }> {
   try {
-    // If marking as purchased, set purchased_at timestamp
-    const updateData = { ...updates };
-    if (updates.is_purchased === true && !updates.purchased_by) {
-      // If marking as purchased but no purchased_by specified, we'll need the current user
-      // This should be handled by the calling code, but we can add a safeguard
-      console.warn('Item marked as purchased but no purchased_by specified');
-    }
+    const updatePayload: Partial<ShoppingListItemInsert> = { ...updates };
+
     if (updates.is_purchased === true) {
-      updateData.purchased_at = new Date().toISOString();
+      updatePayload.purchased_at = new Date().toISOString();
+      // updates.purchased_by is already part of updatePayload due to spread.
+      // If it's undefined and user marks as purchased, it might be an issue depending on RLS/constraints.
+      // The console.warn below handles the case where purchased_by is not explicitly set.
+      if (!updates.purchased_by) {
+        console.warn('Item marked as purchased but purchased_by is not specified. Consider setting purchased_by.');
+      }
     } else if (updates.is_purchased === false) {
-      updateData.purchased_at = null;
-      updateData.purchased_by = null;
+      updatePayload.purchased_at = null;
+      updatePayload.purchased_by = null; // Explicitly clear purchased_by when un-purchasing
     }
+    // Remove is_purchased from the payload as it's not a direct DB column
+    delete updatePayload.is_purchased;
 
     const { data: item, error } = await supabase
       .from('shopping_list_items')
-      .update(updateData)
+      .update(updatePayload)
       .eq('id', itemId)
       .select()
       .single();

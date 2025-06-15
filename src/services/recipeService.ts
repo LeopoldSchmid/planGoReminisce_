@@ -1,5 +1,6 @@
 import { createSupabaseBrowserClient } from '@/lib/supabaseClient';
 import type { Database } from '@/types/supabase';
+import type { Unit } from '@/types';
 
 const supabase = createSupabaseBrowserClient();
 
@@ -18,7 +19,7 @@ export interface RecipeWithIngredients extends RecipeRow {
 export interface RecipeIngredient {
   name: string;
   quantity: number;
-  unit?: string;
+  unit?: Unit;
   notes?: string;
   category?: string;
   optional?: boolean;
@@ -123,32 +124,97 @@ export async function createRecipe(params: {
   }
 }
 
-export async function updateRecipe(
-  recipeId: string,
+export async function updateRecipe(params: {
+  recipeId: string;
   updates: {
     name?: string;
     description?: string;
     servings?: number;
-    prep_time_minutes?: number;
-    cook_time_minutes?: number;
+    prepTimeMinutes?: number;
+    cookTimeMinutes?: number;
     instructions?: string[];
     notes?: string;
-  }
-): Promise<{ recipe: RecipeRow | null; error: any }> {
+    ingredients: RecipeIngredient[]; // Added ingredients to updates
+  };
+  // userId?: string; // Optional: if you want to track who updated
+}): Promise<{ recipe: RecipeWithIngredients | null; error: any }> {
   try {
-    const { data: recipe, error } = await supabase
+    // 1. Update core recipe details
+    const recipeCoreUpdates = {
+      name: params.updates.name,
+      description: params.updates.description,
+      servings: params.updates.servings,
+      prep_time_minutes: params.updates.prepTimeMinutes,
+      cook_time_minutes: params.updates.cookTimeMinutes,
+      instructions: params.updates.instructions,
+      notes: params.updates.notes,
+      // updated_at will be handled by Supabase, add updated_by if needed
+      // updated_by: params.userId,
+    };
+
+    const { data: updatedRecipeData, error: recipeUpdateError } = await supabase
       .from('recipes')
-      .update(updates)
-      .eq('id', recipeId)
+      .update(recipeCoreUpdates)
+      .eq('id', params.recipeId)
       .select()
       .single();
 
-    if (error) {
-      console.error('Error updating recipe:', error);
-      return { recipe: null, error };
+    if (recipeUpdateError) {
+      console.error('Error updating core recipe details:', recipeUpdateError);
+      return { recipe: null, error: recipeUpdateError };
     }
 
-    return { recipe, error: null };
+    if (!updatedRecipeData) {
+      return { recipe: null, error: { message: 'Recipe not found after update.' } };
+    }
+
+    // 2. Delete existing ingredients for this recipe
+    const { error: deleteIngredientsError } = await supabase
+      .from('recipe_ingredients')
+      .delete()
+      .eq('recipe_id', params.recipeId);
+
+    if (deleteIngredientsError) {
+      console.error('Error deleting existing recipe ingredients:', deleteIngredientsError);
+      // Potentially rollback recipe update or handle inconsistency
+      return { recipe: updatedRecipeData, error: deleteIngredientsError }; // Return updated recipe but with ingredient error
+    }
+
+    // 3. Insert new/updated ingredients
+    let newIngredientsData: RecipeIngredientRow[] = [];
+    if (params.updates.ingredients && params.updates.ingredients.length > 0) {
+      const ingredientInserts: RecipeIngredientInsert[] = params.updates.ingredients.map((ingredient, index) => ({
+        recipe_id: params.recipeId,
+        name: ingredient.name,
+        quantity: ingredient.quantity,
+        unit: ingredient.unit || null,
+        notes: ingredient.notes || null,
+        category: ingredient.category || null,
+        optional: ingredient.optional || false,
+        order_index: index, // Maintain order from the form
+      }));
+
+      const { data: insertedIngredients, error: ingredientsInsertError } = await supabase
+        .from('recipe_ingredients')
+        .insert(ingredientInserts)
+        .select();
+
+      if (ingredientsInsertError) {
+        console.error('Error inserting new recipe ingredients:', ingredientsInsertError);
+        // Recipe core details were updated, but ingredients failed.
+        return { 
+          recipe: { ...updatedRecipeData, ingredients: [] }, 
+          error: ingredientsInsertError 
+        };
+      }
+      newIngredientsData = insertedIngredients || [];
+    }
+
+    // Return the updated recipe with its new ingredients
+    return { 
+      recipe: { ...updatedRecipeData, ingredients: newIngredientsData }, 
+      error: null 
+    };
   } catch (err: unknown) {
     console.error('Unexpected error updating recipe:', err);
     return { recipe: null, error: { message: (err as Error).message } };
@@ -184,7 +250,7 @@ export async function updateRecipeIngredient(
   updates: {
     name?: string;
     quantity?: number;
-    unit?: string;
+    unit?: Unit;
     notes?: string;
     category?: string;
     optional?: boolean;
@@ -214,7 +280,7 @@ export async function addRecipeIngredient(params: {
   recipeId: string;
   name: string;
   quantity: number;
-  unit?: string;
+  unit?: Unit;
   notes?: string;
   category?: string;
   optional?: boolean;
@@ -290,9 +356,14 @@ export function scaleRecipe(recipe: RecipeWithIngredients, targetServings: numbe
   const scalingFactor = targetServings / recipe.servings;
   
   const scaledIngredients = (recipe.ingredients || []).map(ingredient => ({
-    ...ingredient,
-    originalQuantity: ingredient.quantity,
-    scaledQuantity: Math.round((ingredient.quantity * scalingFactor) * 100) / 100, // Round to 2 decimal places
+    ...ingredient, // ingredient is RecipeIngredientRow
+    // Explicitly map properties from RecipeIngredientRow to ensure ScaledIngredient type compatibility
+    unit: ingredient.unit === null ? "" : ingredient.unit as Unit, // db: string | null -> app: Unit (where "" is a valid Unit for 'no unit')
+    notes: ingredient.notes === null ? undefined : ingredient.notes, // db: string | null -> app: string | undefined
+    category: ingredient.category === null ? undefined : ingredient.category, // db: string | null -> app: string | undefined
+    // 'name', 'quantity', 'optional' from RecipeIngredientRow are compatible or handled by spread
+    originalQuantity: ingredient.quantity, // Specific to ScaledIngredient
+    scaledQuantity: Math.round((ingredient.quantity * scalingFactor) * 100) / 100, // Specific to ScaledIngredient
   }));
 
   return { scaledIngredients, scalingFactor };
@@ -335,7 +406,7 @@ export async function addScaledRecipeToShoppingList(params: {
           list_id: params.shoppingListId,
           name: ingredient.name,
           quantity: ingredient.scaledQuantity,
-          unit: ingredient.unit,
+          unit: ingredient.unit || null, // ingredient.unit is Unit | undefined, ensure null for DB if undefined
           notes: ingredient.notes ? `${ingredient.notes} (from ${recipe.name})` : `From ${recipe.name}`,
           category: ingredient.category,
           added_by: params.userId,

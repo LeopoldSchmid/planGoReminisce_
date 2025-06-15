@@ -20,3 +20,7 @@ export interface UserWithProfile extends User {
 }
 
 // Add other application-specific types here as the project grows.
+
+// Export unit types
+export type { Unit } from './units';
+export { COMMON_UNITS } from './units';
