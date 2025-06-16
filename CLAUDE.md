@@ -47,7 +47,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `profiles`: User profile data linked to auth.users
 - `trips`: Trip records with creator tracking
 - `trip_members`: Junction table for trip membership with roles (owner/co-owner/member)
-- `trip_invitations`: Token-based invitation system (in development)
+- `trip_invitations`: Token-based invitation system
+- `availability`: Personal and team availability tracking for trip planning
+- `proposals`: Date and destination proposals with voting system
+- `proposal_votes`: Voting records for proposals
+- `discussions`: Threaded discussion system for proposals
+- `shopping_lists`: Multiple shopping lists per trip with member assignments
+- `shopping_list_items`: Items with quantities, units, and purchase tracking
+- `expenses`: Comprehensive expense tracking with multiple splitting methods
+- `expense_participants`: Detailed participant and payment tracking
+- `recipes`: Recipe management with ingredients and standardized units
+- `recipe_ingredients`: Ingredients with quantities and standardized units
 - All tables use UUID primary keys and include RLS policies
 
 **UI Architecture:**
@@ -59,9 +69,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Current Feature Status:**
 - ✅ User authentication & profiles
-- 🔄 Trip management (creation, listing, member invitations - deletion pending)
-- ⏳ Shopping lists (not started)
-- ⏳ Expense tracking (not started)
+- ✅ Trip management (creation, listing, member invitations, deletion)
+- ✅ Advanced trip planning system with availability calendars and proposal voting
+- ✅ Shopping lists with multi-list support, member assignments, and purchase tracking
+- ✅ Comprehensive expense tracking with multiple splitting methods and payment tracking
+- ✅ Recipe management with ingredients, standardized units, and detailed planning
+- ✅ Real-time discussion system for proposals and collaboration
 
 **Route Protection Pattern:**
 ```typescript
@@ -83,10 +96,16 @@ if (!user && !isLoading) {
 
 ## Important Implementation Notes
 
+**Advanced Trip Planning Features:**
+- Sophisticated availability calendar with drag-to-paint interface for date selection
+- Proposal system with voting mechanism for dates and destinations
+- Real-time heatmap visualization showing team availability overlaps
+- Threaded discussion system for collaborative decision-making
+
 **Trip Invitation System:**
-- Current email-based invites use placeholder user resolution
-- Production requires secure Edge Function or RPC for email-to-userID lookup
-- Token-based invitation system under development in migrations
+- Email-based invites with user resolution via database lookup
+- Token-based invitation system for secure trip joining
+- Role-based access control (owner/co-owner/member) with proper permissions
 
 **Type Safety:**
 - `Database` type imported from `@/types/supabase` (generated from Supabase)

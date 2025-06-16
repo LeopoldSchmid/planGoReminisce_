@@ -49,6 +49,14 @@ module.exports = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Semantic Trip Phase Colors  
+        planning: "hsl(217 91% 35%)",
+        active: "hsl(24 95% 53%)",
+        complete: "hsl(142 71% 45%)",
+        // Extended Semantic Colors
+        success: "hsl(142 71% 45%)", 
+        warning: "hsl(43 96% 56%)",
+        info: "hsl(217 91% 60%)",
       },
       borderRadius: {
         lg: "var(--radius)",

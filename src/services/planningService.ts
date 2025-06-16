@@ -149,11 +149,6 @@ export async function getDateProposals(
       .from('date_proposals')
       .select(`
         *,
-        profiles!date_proposals_proposed_by_fkey (
-          username,
-          full_name,
-          avatar_url
-        ),
         destination_proposals (*)
       `)
       .eq('trip_id', tripId)
@@ -164,18 +159,24 @@ export async function getDateProposals(
       return { proposals: null, error };
     }
 
-    // Enhance proposals with stats and user votes
+    // Enhance proposals with stats, user votes, and profile data
     const enhancedProposals = await Promise.all(
       data.map(async (proposal: any) => {
-        const [statsResult, userVoteResult, discussionResult] = await Promise.all([
+        const [statsResult, userVoteResult, discussionResult, profileResult] = await Promise.all([
           getProposalStats(proposal.id, null),
           currentUserId ? getUserVoteForProposal(proposal.id, null, currentUserId) : Promise.resolve({ vote: null, error: null }),
-          getDiscussionCount(proposal.id, null)
+          getDiscussionCount(proposal.id, null),
+          // Fetch profile separately
+          supabase
+            .from('profiles')
+            .select('username, full_name, avatar_url')
+            .eq('id', proposal.proposed_by)
+            .single()
         ]);
 
         return {
           ...proposal,
-          proposed_by_profile: proposal.profiles,
+          proposed_by_profile: profileResult.data,
           vote_stats: statsResult.stats,
           user_vote: userVoteResult.vote?.vote_type,
           discussion_count: discussionResult.count || 0,
@@ -306,11 +307,6 @@ export async function getDestinationProposals(
       .from('destination_proposals')
       .select(`
         *,
-        profiles!destination_proposals_proposed_by_fkey (
-          username,
-          full_name,
-          avatar_url
-        ),
         date_proposals (*)
       `)
       .eq('trip_id', tripId)
@@ -321,18 +317,24 @@ export async function getDestinationProposals(
       return { proposals: null, error };
     }
 
-    // Enhance proposals with stats and user votes
+    // Enhance proposals with stats, user votes, and profile data
     const enhancedProposals = await Promise.all(
       data.map(async (proposal: any) => {
-        const [statsResult, userVoteResult, discussionResult] = await Promise.all([
+        const [statsResult, userVoteResult, discussionResult, profileResult] = await Promise.all([
           getProposalStats(null, proposal.id),
           currentUserId ? getUserVoteForProposal(null, proposal.id, currentUserId) : Promise.resolve({ vote: null, error: null }),
-          getDiscussionCount(null, proposal.id)
+          getDiscussionCount(null, proposal.id),
+          // Fetch profile separately
+          supabase
+            .from('profiles')
+            .select('username, full_name, avatar_url')
+            .eq('id', proposal.proposed_by)
+            .single()
         ]);
 
         return {
           ...proposal,
-          proposed_by_profile: proposal.profiles,
+          proposed_by_profile: profileResult.data,
           vote_stats: statsResult.stats,
           user_vote: userVoteResult.vote?.vote_type,
           discussion_count: discussionResult.count || 0,
@@ -541,14 +543,7 @@ export async function createComment(
         destination_proposal_id: comment.destination_proposal_id,
         parent_comment_id: comment.parent_comment_id
       })
-      .select(`
-        *,
-        profiles!proposal_discussions_user_id_fkey (
-          username,
-          full_name,
-          avatar_url
-        )
-      `)
+      .select()
       .single();
 
     if (error) {
@@ -556,10 +551,17 @@ export async function createComment(
       return { comment: null, error };
     }
 
+    // Fetch the user profile separately
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('username, full_name, avatar_url')
+      .eq('id', data.user_id)
+      .single();
+
     return { 
       comment: {
         ...data,
-        user_profile: data.profiles
+        user_profile: profileData
       }, 
       error: null 
     };
@@ -583,14 +585,7 @@ export async function getDiscussions(
   try {
     let query = supabase
       .from('proposal_discussions')
-      .select(`
-        *,
-        profiles!proposal_discussions_user_id_fkey (
-          username,
-          full_name,
-          avatar_url
-        )
-      `)
+      .select('*')
       .eq('trip_id', tripId)
       .is('parent_comment_id', null) // Only top-level comments initially
       .order('created_at', { ascending: true });
@@ -612,9 +607,18 @@ export async function getDiscussions(
       return { discussions: null, error };
     }
 
+    // Fetch profiles for all discussions
+    const userIds = [...new Set(data.map((d: any) => d.user_id))];
+    const { data: profilesData } = await supabase
+      .from('profiles')
+      .select('id, username, full_name, avatar_url')
+      .in('id', userIds);
+
+    const profileMap = new Map(profilesData?.map(p => [p.id, p]) || []);
+
     let discussions = data.map((d: any) => ({
       ...d,
-      user_profile: d.profiles,
+      user_profile: profileMap.get(d.user_id),
       replies: []
     }));
 
@@ -622,18 +626,20 @@ export async function getDiscussions(
     if (options?.include_replies && discussions.length > 0) {
       const { data: replies, error: repliesError } = await supabase
         .from('proposal_discussions')
-        .select(`
-          *,
-          profiles!proposal_discussions_user_id_fkey (
-            username,
-            full_name,
-            avatar_url
-          )
-        `)
+        .select('*')
         .in('parent_comment_id', discussions.map(d => d.id))
         .order('created_at', { ascending: true });
 
       if (!repliesError && replies) {
+        // Fetch profiles for reply authors
+        const replyUserIds = [...new Set(replies.map((r: any) => r.user_id))];
+        const { data: replyProfilesData } = await supabase
+          .from('profiles')
+          .select('id, username, full_name, avatar_url')
+          .in('id', replyUserIds);
+
+        const replyProfileMap = new Map(replyProfilesData?.map(p => [p.id, p]) || []);
+
         const replyMap = new Map<string, any[]>();
         replies.forEach((reply: any) => {
           const parentId = reply.parent_comment_id;
@@ -642,7 +648,7 @@ export async function getDiscussions(
           }
           replyMap.get(parentId)!.push({
             ...reply,
-            user_profile: reply.profiles
+            user_profile: replyProfileMap.get(reply.user_id)
           });
         });
 
@@ -676,14 +682,7 @@ export async function updateComment(
         updated_at: new Date().toISOString()
       })
       .eq('id', commentId)
-      .select(`
-        *,
-        profiles!proposal_discussions_user_id_fkey (
-          username,
-          full_name,
-          avatar_url
-        )
-      `)
+      .select()
       .single();
 
     if (error) {
@@ -691,10 +690,17 @@ export async function updateComment(
       return { comment: null, error };
     }
 
+    // Fetch the user profile separately
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('username, full_name, avatar_url')
+      .eq('id', data.user_id)
+      .single();
+
     return { 
       comment: {
         ...data,
-        user_profile: data.profiles
+        user_profile: profileData
       }, 
       error: null 
     };

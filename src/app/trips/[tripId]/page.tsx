@@ -31,7 +31,8 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@/components/ui/avatar";
-import { UserPlus, LinkIcon, Trash2 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { UserPlus, LinkIcon, Trash2, MapPin, Camera, PlaneTakeoff } from 'lucide-react';
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { ShoppingListsSection } from "@/components/shopping/ShoppingListsSection";
@@ -48,6 +49,7 @@ function TripDetailPageContent() {
   const tripId = params?.tripId as string;
   const { user } = useAuth();
   const [isInviteLinkDialogOpen, setIsInviteLinkDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("plan");
   const [generatedLink, setGeneratedLink] = useState<string>("");
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -96,6 +98,27 @@ function TripDetailPageContent() {
     },
   });
 
+  // Set default tab based on trip status when trip data loads
+  React.useEffect(() => {
+    if (tripData?.trip && activeTab === "plan") {
+      const getTripStatus = (trip: { start_date?: string; end_date?: string }) => {
+        if (!trip?.start_date || !trip?.end_date) return "planning";
+        
+        const now = new Date();
+        const startDate = new Date(trip.start_date);
+        const endDate = new Date(trip.end_date);
+        
+        if (now >= startDate && now <= endDate) return "active";
+        if (now > endDate) return "complete";
+        return "planning";
+      };
+      
+      const tripStatus = getTripStatus(tripData.trip);
+      const defaultTab = tripStatus === "active" ? "go" : tripStatus === "complete" ? "reminisce" : "plan";
+      setActiveTab(defaultTab);
+    }
+  }, [tripData, activeTab]);
+
   if (isLoadingTrip || isLoadingMembers) {
     return <LoadingSpinner message="Loading trip details..." />;
   }
@@ -114,6 +137,22 @@ function TripDetailPageContent() {
   const currentUserMemberInfo = members.find(member => member.user_id === user?.id);
   const canInvite = currentUserMemberInfo?.role === 'owner' || currentUserMemberInfo?.role === 'co-owner';
   const canDelete = currentUserMemberInfo?.role === 'owner' || currentUserMemberInfo?.role === 'co-owner';
+
+  // Calculate trip status for display
+  const getTripStatus = (trip: { start_date?: string; end_date?: string }) => {
+    if (!trip?.start_date || !trip?.end_date) return "planning";
+    
+    const now = new Date();
+    const startDate = new Date(trip.start_date);
+    const endDate = new Date(trip.end_date);
+    
+    if (now >= startDate && now <= endDate) return "active";
+    if (now > endDate) return "complete";
+    return "planning";
+  };
+  
+  const tripStatus = getTripStatus(trip);
+
 
   const handleGenerateInviteLink = async () => {
     if (!trip) return;
@@ -149,12 +188,12 @@ function TripDetailPageContent() {
   };
 
   return (
-    <div className="container mx-auto p-4 space-y-6">
+    <div className="container mx-auto p-4 space-y-6 page-transition">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
         <div className="flex-1">
           <h1 className="text-2xl sm:text-3xl font-bold mb-2">{trip.name}</h1>
-          <p className="text-gray-600 mb-2">{trip.description || "No description provided."}</p>
-          <p className="text-sm text-gray-500 mb-3">
+          <p className="text-muted-foreground mb-2">{trip.description || "No description provided."}</p>
+          <p className="text-sm text-muted-foreground mb-3">
             Dates: {trip.start_date && trip.end_date ? `${new Date(trip.start_date).toLocaleDateString()} to ${new Date(trip.end_date).toLocaleDateString()}` : "To Be Decided"}
           </p>
         </div>
@@ -162,7 +201,7 @@ function TripDetailPageContent() {
           {canDelete && (
             <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
               <DialogTrigger asChild>
-                <Button variant="destructive" className="w-full sm:w-auto min-h-[44px]">
+                <Button className="w-full sm:w-auto min-h-[44px] bg-destructive-brand hover:bg-destructive-brand text-white font-medium">
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete Trip
                 </Button>
@@ -294,53 +333,175 @@ function TripDetailPageContent() {
         </CardContent>
       </Card>
 
-      <TripPlanningSection
-        tripId={trip.id}
-        currentUserId={user?.id || ''}
-        currentUserRole={currentUserMemberInfo?.role}
-      />
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-3 mb-8">
+          <TabsTrigger value="plan" className="flex items-center gap-2 relative">
+            <MapPin className="h-4 w-4" />
+            Plan
+            {tripStatus === "planning" && (
+              <div className="absolute -top-1 -right-1 w-2 h-2 bg-planning rounded-full"></div>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="go" className="flex items-center gap-2 relative">
+            <PlaneTakeoff className="h-4 w-4" />
+            Go
+            {tripStatus === "active" && (
+              <div className="absolute -top-1 -right-1 w-2 h-2 bg-active rounded-full animate-pulse"></div>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="reminisce" className="flex items-center gap-2 relative">
+            <Camera className="h-4 w-4" />
+            Reminisce
+            {tripStatus === "complete" && (
+              <div className="absolute -top-1 -right-1 w-2 h-2 bg-complete rounded-full"></div>
+            )}
+          </TabsTrigger>
+        </TabsList>
 
-      <RecipesSection 
-        tripId={trip.id}
-        tripMembers={members.map(member => ({
-          user_id: member.user_id,
-          username: member.username,
-          full_name: member.full_name,
-        }))}
-        currentUserRole={currentUserMemberInfo?.role}
-      />
+        <TabsContent value="plan" className="space-y-6">
+          <TripPlanningSection
+            tripId={trip.id}
+            currentUserId={user?.id || ''}
+            currentUserRole={currentUserMemberInfo?.role}
+          />
 
-      <ShoppingListsSection 
-        tripId={trip.id}
-        tripMembers={members.map(member => ({
-          user_id: member.user_id,
-          username: member.username,
-          full_name: member.full_name,
-          avatar_url: member.avatar_url,
-          role: member.role
-        }))}
-        currentUserRole={currentUserMemberInfo?.role}
-      />
+          <RecipesSection 
+            tripId={trip.id}
+            tripMembers={members.map(member => ({
+              user_id: member.user_id,
+              username: member.username,
+              full_name: member.full_name,
+            }))}
+            currentUserRole={currentUserMemberInfo?.role}
+          />
 
-      <AggregatedShoppingView 
-        tripId={trip.id}
-        tripMembers={members.map(member => ({
-          user_id: member.user_id,
-          username: member.username,
-          full_name: member.full_name,
-        }))}
-      />
+          <ShoppingListsSection 
+            tripId={trip.id}
+            tripMembers={members.map(member => ({
+              user_id: member.user_id,
+              username: member.username,
+              full_name: member.full_name,
+              avatar_url: member.avatar_url,
+              role: member.role
+            }))}
+            currentUserRole={currentUserMemberInfo?.role}
+          />
 
-      <ExpensesSection 
-        tripId={trip.id}
-        tripMembers={members.map(member => ({
-          user_id: member.user_id,
-          username: member.username,
-          full_name: member.full_name,
-          role: member.role
-        }))}
-        currentUserRole={currentUserMemberInfo?.role}
-      />
+          <AggregatedShoppingView 
+            tripId={trip.id}
+            tripMembers={members.map(member => ({
+              user_id: member.user_id,
+              username: member.username,
+              full_name: member.full_name,
+            }))}
+          />
+
+          <ExpensesSection 
+            tripId={trip.id}
+            tripMembers={members.map(member => ({
+              user_id: member.user_id,
+              username: member.username,
+              full_name: member.full_name,
+              role: member.role
+            }))}
+            currentUserRole={currentUserMemberInfo?.role}
+          />
+        </TabsContent>
+
+        <TabsContent value="go" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <PlaneTakeoff className="h-5 w-5" />
+                Trip is Active!
+              </CardTitle>
+              <CardDescription>
+                Your trip is underway. Use this space for real-time updates, quick expense tracking, and live coordination.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Quick Expense Entry</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground mb-4">Add expenses on the go while you're traveling.</p>
+                    <Button className="w-full">Add Expense</Button>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Live Updates</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground mb-4">Share real-time updates with your travel group.</p>
+                    <Button variant="outline" className="w-full">Share Update</Button>
+                  </CardContent>
+                </Card>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <ExpensesSection 
+            tripId={trip.id}
+            tripMembers={members.map(member => ({
+              user_id: member.user_id,
+              username: member.username,
+              full_name: member.full_name,
+              role: member.role
+            }))}
+            currentUserRole={currentUserMemberInfo?.role}
+          />
+        </TabsContent>
+
+        <TabsContent value="reminisce" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Camera className="h-5 w-5" />
+                Trip Memories
+              </CardTitle>
+              <CardDescription>
+                Look back on your amazing trip and capture the memories you made together.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Photo Album</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground mb-4">Collect and share photos from your trip.</p>
+                    <Button className="w-full">View Photos</Button>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Trip Summary</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground mb-4">Review your expenses and create a final summary.</p>
+                    <Button variant="outline" className="w-full">Generate Summary</Button>
+                  </CardContent>
+                </Card>
+              </div>
+            </CardContent>
+          </Card>
+
+          <ExpensesSection 
+            tripId={trip.id}
+            tripMembers={members.map(member => ({
+              user_id: member.user_id,
+              username: member.username,
+              full_name: member.full_name,
+              role: member.role
+            }))}
+            currentUserRole={currentUserMemberInfo?.role}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

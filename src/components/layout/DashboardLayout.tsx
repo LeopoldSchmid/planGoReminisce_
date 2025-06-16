@@ -42,25 +42,28 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm border-b">
+    <div className="min-h-screen bg-brand-subtle">
+      <nav className="bg-card-elevated shadow-sm border-b border-brand-soft">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
-              <Link href="/" className="text-xl font-bold text-blue-600">
+              <Link 
+                href="/" 
+                className="text-xl font-bold text-brand-primary hover:text-brand-primary transition-colors"
+              >
                 Plangoreminisce
               </Link>
               {/* Desktop Navigation */}
               <div className="hidden md:ml-10 md:flex md:items-baseline md:space-x-4">
                 <Link
                   href="/trips"
-                  className="text-gray-900 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                  className="text-foreground hover:text-primary px-3 py-2 rounded-md text-sm font-medium transition-colors"
                 >
                   My Trips
                 </Link>
                 <Link
                   href="/profile"
-                  className="text-gray-900 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                  className="text-foreground hover:text-primary px-3 py-2 rounded-md text-sm font-medium transition-colors"
                 >
                   Profile
                 </Link>
@@ -69,7 +72,7 @@ export default function DashboardLayout({
             
             {/* Desktop User Menu */}
             <div className="hidden md:flex md:items-center md:space-x-4">
-              <span className="text-gray-700 text-sm">Welcome, {user.email}</span>
+              <span className="text-muted-foreground text-sm">Welcome, {user.email}</span>
               <Button onClick={handleSignOut} variant="outline" size="sm">
                 Sign Out
               </Button>
@@ -80,7 +83,7 @@ export default function DashboardLayout({
               <Button
                 variant="ghost"
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="inline-flex items-center justify-center p-3 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 min-h-[44px] min-w-[44px]"
+                className="inline-flex items-center justify-center p-3 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted min-h-[44px] min-w-[44px]"
               >
                 {isMobileMenuOpen ? (
                   <X className="h-6 w-6" />
@@ -94,25 +97,25 @@ export default function DashboardLayout({
           {/* Mobile menu - improved touch targets */}
           {isMobileMenuOpen && (
             <div className="md:hidden">
-              <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 border-t border-gray-200">
+              <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 border-t border-border">
                 <Link
                   href="/trips"
-                  className="text-gray-900 hover:text-blue-600 block px-4 py-3 rounded-md text-base font-medium transition-colors min-h-[44px] flex items-center"
+                  className="text-foreground hover:text-primary block px-4 py-3 rounded-md text-base font-medium transition-colors min-h-[44px] flex items-center"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   My Trips
                 </Link>
                 <Link
                   href="/profile"
-                  className="text-gray-900 hover:text-blue-600 block px-4 py-3 rounded-md text-base font-medium transition-colors min-h-[44px] flex items-center"
+                  className="text-foreground hover:text-primary block px-4 py-3 rounded-md text-base font-medium transition-colors min-h-[44px] flex items-center"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   Profile
                 </Link>
-                <div className="border-t border-gray-200 pt-4 pb-3 mt-4">
+                <div className="border-t border-border pt-4 pb-3 mt-4">
                   <div className="px-4 py-2">
-                    <p className="text-sm text-gray-700">Signed in as</p>
-                    <p className="text-sm font-medium text-gray-900 truncate">{user.email}</p>
+                    <p className="text-sm text-muted-foreground">Signed in as</p>
+                    <p className="text-sm font-medium text-foreground truncate">{user.email}</p>
                   </div>
                   <div className="px-4 pt-2">
                     <Button 

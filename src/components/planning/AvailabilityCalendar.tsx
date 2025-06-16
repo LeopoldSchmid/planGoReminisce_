@@ -179,6 +179,14 @@ export function AvailabilityCalendar({
     handleDateClick(calendarDate);
   };
 
+  const handleTouchStart = (calendarDate: CalendarDate) => {
+    if (disabled) return;
+    
+    setIsDragging(true);
+    setDragStartDate(calendarDate.date);
+    handleDateClick(calendarDate);
+  };
+
   const handleMouseEnter = (calendarDate: CalendarDate) => {
     if (!isDragging || !dragStartDate) return;
 
@@ -203,7 +211,30 @@ export function AvailabilityCalendar({
     }
   };
 
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging || !dragStartDate || mode !== 'quick') return;
+    
+    e.preventDefault();
+    
+    // Get the element under the touch point
+    const touch = e.touches[0];
+    const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+    
+    if (elementBelow && elementBelow.hasAttribute('data-date')) {
+      const dateStr = elementBelow.getAttribute('data-date');
+      if (dateStr) {
+        const calendarDate = { date: dateStr } as CalendarDate;
+        handleMouseEnter(calendarDate);
+      }
+    }
+  };
+
   const handleMouseUp = () => {
+    setIsDragging(false);
+    setDragStartDate(null);
+  };
+
+  const handleTouchEnd = () => {
     setIsDragging(false);
     setDragStartDate(null);
   };
@@ -211,15 +242,19 @@ export function AvailabilityCalendar({
   useEffect(() => {
     if (isDragging) {
       document.addEventListener('mouseup', handleMouseUp);
-      return () => document.removeEventListener('mouseup', handleMouseUp);
+      document.addEventListener('touchend', handleTouchEnd);
+      return () => {
+        document.removeEventListener('mouseup', handleMouseUp);
+        document.removeEventListener('touchend', handleTouchEnd);
+      };
     }
   }, [isDragging]);
 
   const getDateStyle = (calendarDate: CalendarDate) => {
     const { availability, isCurrentMonth, isToday } = calendarDate;
     const baseClasses = [
-      'w-8 h-8 flex items-center justify-center text-sm rounded-sm cursor-pointer transition-colors border',
-      'hover:bg-gray-100 dark:hover:bg-gray-800'
+      'w-10 h-10 sm:w-8 sm:h-8 flex items-center justify-center text-sm rounded-lg cursor-pointer transition-all duration-200 border touch-manipulation',
+      'hover:bg-muted active:scale-95 active:bg-muted'
     ];
 
     if (!isCurrentMonth) {
@@ -227,7 +262,7 @@ export function AvailabilityCalendar({
     }
 
     if (isToday) {
-      baseClasses.push('ring-2 ring-blue-500 dark:ring-blue-400');
+      baseClasses.push('ring-2 ring-primary');
     }
 
     if (disabled) {
@@ -236,9 +271,9 @@ export function AvailabilityCalendar({
 
     // Availability styling
     if (availability === 'unavailable') {
-      baseClasses.push('bg-red-100 border-red-300 text-red-800 dark:bg-red-900 dark:border-red-700 dark:text-red-200');
+      baseClasses.push('bg-destructive/10 border-destructive/30 text-destructive hover:bg-destructive/20');
     } else if (availability === 'available') {
-      baseClasses.push('bg-orange-100 border-orange-300 text-orange-800 dark:bg-orange-900 dark:border-orange-700 dark:text-orange-200');
+      baseClasses.push('bg-success/10 border-success/30 text-success hover:bg-success/20');
     }
 
     // Heatmap styling (if enabled and no availability set)
@@ -247,13 +282,13 @@ export function AvailabilityCalendar({
       if (heatmapEntry) {
         const percentage = heatmapEntry.availability_percentage;
         if (percentage >= 80) {
-          baseClasses.push('bg-green-100 border-green-300 dark:bg-green-900 dark:border-green-700');
+          baseClasses.push('bg-success/10 border-success/30 text-success');
         } else if (percentage >= 60) {
-          baseClasses.push('bg-yellow-100 border-yellow-300 dark:bg-yellow-900 dark:border-yellow-700');
+          baseClasses.push('bg-warning/10 border-warning/30 text-warning');
         } else if (percentage >= 40) {
-          baseClasses.push('bg-orange-100 border-orange-300 dark:bg-orange-900 dark:border-orange-700');
+          baseClasses.push('bg-active/10 border-active/30 text-active');
         } else if (percentage > 0) {
-          baseClasses.push('bg-red-100 border-red-300 dark:bg-red-900 dark:border-red-700');
+          baseClasses.push('bg-destructive/10 border-destructive/30 text-destructive');
         }
       }
     }
@@ -289,18 +324,19 @@ export function AvailabilityCalendar({
   };
 
   return (
-    <Card className={cn('w-full max-w-md', className)}>
-      <CardHeader>
+    <Card className={cn('w-full max-w-md mx-auto', className)}>
+      <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg">
             {showHeatmap ? 'Team Availability' : 'My Availability'}
           </CardTitle>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={() => navigateMonth('prev')}
               disabled={disabled}
+              className="p-2 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 sm:p-1"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -312,6 +348,7 @@ export function AvailabilityCalendar({
               size="sm"
               onClick={() => navigateMonth('next')}
               disabled={disabled}
+              className="p-2 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 sm:p-1"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -321,23 +358,23 @@ export function AvailabilityCalendar({
         {/* Mode Toggle and Paint Brush Selection */}
         {!showHeatmap && !disabled && (
           <div className="space-y-3">
-            {/* Mode Toggle */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
+            {/* Mode Toggle - Simplified for mobile */}
+            <div className="flex items-center justify-center">
+              <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
                 <Button
-                  variant={mode === 'quick' ? 'default' : 'outline'}
+                  variant={mode === 'quick' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setMode('quick')}
-                  className="flex items-center gap-1"
+                  className="flex items-center gap-1 text-xs px-3 py-2"
                 >
                   <Paintbrush className="h-3 w-3" />
                   Quick
                 </Button>
                 <Button
-                  variant={mode === 'detailed' ? 'default' : 'outline'}
+                  variant={mode === 'detailed' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setMode('detailed')}
-                  className="flex items-center gap-1"
+                  className="flex items-center gap-1 text-xs px-3 py-2"
                 >
                   <Settings className="h-3 w-3" />
                   Detailed
@@ -348,30 +385,30 @@ export function AvailabilityCalendar({
             {/* Paint Brush Selection for Quick Mode */}
             {mode === 'quick' && (
               <div className="space-y-2">
-                <div className="text-xs font-medium text-gray-700 dark:text-gray-300">Paint Brush:</div>
-                <div className="flex gap-2">
+                <div className="text-xs font-medium text-muted-foreground text-center">Select status to paint:</div>
+                <div className="flex gap-2 justify-center">
                   <button
                     onClick={() => setPaintBrushStatus('unavailable')}
                     className={cn(
-                      'flex items-center gap-2 px-3 py-2 rounded text-xs transition-all border',
+                      'flex items-center gap-2 px-4 py-3 rounded-lg text-xs transition-all border min-h-[44px] touch-manipulation',
                       paintBrushStatus === 'unavailable'
-                        ? 'bg-red-100 border-red-300 text-red-800 ring-2 ring-red-500 ring-offset-1 dark:bg-red-900 dark:border-red-700 dark:text-red-200'
-                        : 'border-gray-300 hover:border-red-300 dark:border-gray-600 dark:hover:border-red-600'
+                        ? 'bg-destructive/10 border-destructive text-destructive ring-2 ring-destructive'
+                        : 'border-border hover:border-destructive hover:bg-destructive/5'
                     )}
                   >
-                    <div className="w-3 h-3 bg-red-100 border border-red-300 rounded dark:bg-red-900 dark:border-red-700"></div>
+                    <div className="w-3 h-3 bg-destructive/20 border border-destructive rounded"></div>
                     Unavailable
                   </button>
                   <button
                     onClick={() => setPaintBrushStatus('available')}
                     className={cn(
-                      'flex items-center gap-2 px-3 py-2 rounded text-xs transition-all border',
+                      'flex items-center gap-2 px-4 py-3 rounded-lg text-xs transition-all border min-h-[44px] touch-manipulation',
                       paintBrushStatus === 'available'
-                        ? 'bg-orange-100 border-orange-300 text-orange-800 ring-2 ring-orange-500 ring-offset-1 dark:bg-orange-900 dark:border-orange-700 dark:text-orange-200'
-                        : 'border-gray-300 hover:border-orange-300 dark:border-gray-600 dark:hover:border-orange-600'
+                        ? 'bg-success/10 border-success text-success ring-2 ring-success'
+                        : 'border-border hover:border-success hover:bg-success/5'
                     )}
                   >
-                    <div className="w-3 h-3 bg-orange-100 border border-orange-300 rounded dark:bg-orange-900 dark:border-orange-700"></div>
+                    <div className="w-3 h-3 bg-success/20 border border-success rounded"></div>
                     Available
                   </button>
                 </div>
@@ -381,38 +418,38 @@ export function AvailabilityCalendar({
         )}
         
         {showLegend && (
-          <div className="flex flex-wrap gap-2 text-xs">
+          <div className="flex flex-wrap gap-3 text-xs text-muted-foreground justify-center">
             {!showHeatmap ? (
               <>
                 <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 bg-red-100 border border-red-300 rounded"></div>
+                  <div className="w-3 h-3 bg-destructive/20 border border-destructive rounded"></div>
                   <span>Unavailable</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 bg-orange-100 border border-orange-300 rounded"></div>
+                  <div className="w-3 h-3 bg-success/20 border border-success rounded"></div>
                   <span>Available</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 bg-white border border-gray-300 rounded"></div>
+                  <div className="w-3 h-3 bg-card border border-border rounded"></div>
                   <span>Ideal</span>
                 </div>
               </>
             ) : (
               <>
                 <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 bg-green-100 border border-green-300 rounded"></div>
+                  <div className="w-3 h-3 bg-success/20 border border-success rounded"></div>
                   <span>80%+ available</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 bg-yellow-100 border border-yellow-300 rounded"></div>
+                  <div className="w-3 h-3 bg-warning/20 border border-warning rounded"></div>
                   <span>60-79%</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 bg-orange-100 border border-orange-300 rounded"></div>
+                  <div className="w-3 h-3 bg-active/20 border border-active rounded"></div>
                   <span>40-59%</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 bg-red-100 border border-red-300 rounded"></div>
+                  <div className="w-3 h-3 bg-destructive/20 border border-destructive rounded"></div>
                   <span>&lt;40%</span>
                 </div>
               </>
@@ -421,31 +458,34 @@ export function AvailabilityCalendar({
         )}
 
         {!disabled && (
-          <div className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400">
-            <Info className="h-3 w-3" />
+          <div className="flex items-center gap-1 text-xs text-muted-foreground justify-center text-center">
+            <Info className="h-3 w-3 shrink-0" />
             <span>
               {mode === 'quick' 
-                ? 'Click or drag to paint dates. Click same status to remove.'
-                : 'Click dates to open detailed availability editor.'
+                ? 'Tap or drag to paint dates. Tap same status to remove.'
+                : 'Tap dates to open detailed availability editor.'
               }
             </span>
           </div>
         )}
       </CardHeader>
 
-      <CardContent>
-        <div className="space-y-2">
+      <CardContent className="pt-0">
+        <div className="space-y-3">
           {/* Days of week header */}
           <div className="grid grid-cols-7 gap-1 mb-2">
             {DAYS.map(day => (
-              <div key={day} className="text-center text-xs font-medium text-gray-500 dark:text-gray-400 py-1">
+              <div key={day} className="text-center text-xs font-medium text-muted-foreground py-2">
                 {day}
               </div>
             ))}
           </div>
 
           {/* Calendar grid */}
-          <div className="grid grid-cols-7 gap-1">
+          <div 
+            className="grid grid-cols-7 gap-2 sm:gap-1"
+            onTouchMove={handleTouchMove}
+          >
             {calendarDates.map((calendarDate, index) => {
               const tooltip = getHeatmapTooltip(calendarDate);
               
@@ -453,10 +493,13 @@ export function AvailabilityCalendar({
                 <div
                   key={index}
                   className={getDateStyle(calendarDate)}
+                  data-date={calendarDate.date}
                   onClick={() => handleDateClick(calendarDate)}
                   onMouseDown={() => handleMouseDown(calendarDate)}
                   onMouseEnter={() => handleMouseEnter(calendarDate)}
+                  onTouchStart={() => handleTouchStart(calendarDate)}
                   title={tooltip || undefined}
+                  style={{ touchAction: 'none' }}
                 >
                   {calendarDate.day}
                 </div>
