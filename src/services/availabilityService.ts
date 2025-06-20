@@ -14,13 +14,15 @@ export interface UserAvailability {
   updated_at: string;
 }
 
-export interface TripAvailabilityOverride {
+export interface TripUserAvailability {
   id: string;
   trip_id: string;
   user_id: string;
   date: string;
   availability_status: AvailabilityStatus;
   override_reason?: string;
+  synced_from_central: boolean;
+  last_sync_date?: string;
   created_at: string;
   updated_at: string;
 }
@@ -29,6 +31,7 @@ export interface AvailabilityHeatmapData {
   date: string;
   total_members: number;
   available_count: number;
+  maybe_count: number;
   unavailable_count: number;
   availability_percentage: number;
 }
@@ -39,13 +42,19 @@ export interface DateRange {
 }
 
 // =====================================================
-// USER AVAILABILITY FUNCTIONS
+// USER AVAILABILITY FUNCTIONS (MOVED TO COMPATIBILITY SECTION)
+// =====================================================
+// Note: The main getUserAvailability and setUserAvailability functions 
+// are now in the compatibility section to support both central and trip-specific usage
+
+// =====================================================
+// CENTRAL AVAILABILITY FUNCTIONS (USER'S PERSONAL CALENDAR)
 // =====================================================
 
 /**
- * Get user's general availability for a date range
+ * Get user's central availability for a date range (personal calendar)
  */
-export async function getUserAvailability(
+export async function getUserCentralAvailability(
   userId: string,
   dateRange: DateRange
 ): Promise<{ availability: UserAvailability[] | null; error: any }> {
@@ -59,21 +68,23 @@ export async function getUserAvailability(
       .order('date');
 
     if (error) {
-      console.error('Error fetching user availability:', error);
+      console.error('Error fetching central user availability:', error);
       return { availability: null, error };
     }
 
-    return { availability: data.map(d => ({ ...d, availability_status: d.availability_status as AvailabilityStatus, notes: d.notes ?? undefined })), error: null };
+    const mappedData = data.map(d => ({ ...d, availability_status: d.availability_status as AvailabilityStatus, notes: d.notes ?? undefined }));
+    
+    return { availability: mappedData, error: null };
   } catch (err) {
-    console.error('Unexpected error in getUserAvailability:', err);
+    console.error('Unexpected error in getUserCentralAvailability:', err);
     return { availability: null, error: err };
   }
 }
 
 /**
- * Set user's availability for specific dates
+ * Set user's central availability (personal calendar)
  */
-export async function setUserAvailability(
+export async function setUserCentralAvailability(
   userId: string,
   dates: Array<{
     date: string;
@@ -99,58 +110,32 @@ export async function setUserAvailability(
       );
 
     if (error) {
-      console.error('Error setting user availability:', error);
+      console.error('Error setting central user availability:', error);
       return { success: false, error };
     }
 
     return { success: true, error: null };
   } catch (err) {
-    console.error('Unexpected error in setUserAvailability:', err);
-    return { success: false, error: err };
-  }
-}
-
-/**
- * Clear user's availability for specific dates
- */
-export async function clearUserAvailability(
-  userId: string,
-  dates: string[]
-): Promise<{ success: boolean; error: any }> {
-  try {
-    const { error } = await supabase
-      .from('user_availability')
-      .delete()
-      .eq('user_id', userId)
-      .in('date', dates);
-
-    if (error) {
-      console.error('Error clearing user availability:', error);
-      return { success: false, error };
-    }
-
-    return { success: true, error: null };
-  } catch (err) {
-    console.error('Unexpected error in clearUserAvailability:', err);
+    console.error('Unexpected error in setUserCentralAvailability:', err);
     return { success: false, error: err };
   }
 }
 
 // =====================================================
-// TRIP AVAILABILITY OVERRIDE FUNCTIONS
+// TRIP-SPECIFIC AVAILABILITY FUNCTIONS
 // =====================================================
 
 /**
- * Get trip-specific availability overrides for a user
+ * Get trip-specific availability for a user
  */
-export async function getTripAvailabilityOverrides(
+export async function getTripUserAvailability(
   tripId: string,
   userId: string,
   dateRange: DateRange
-): Promise<{ overrides: TripAvailabilityOverride[] | null; error: any }> {
+): Promise<{ availability: TripUserAvailability[] | null; error: any }> {
   try {
     const { data, error } = await supabase
-      .from('trip_availability_overrides')
+      .from('trip_user_availability')
       .select('*')
       .eq('trip_id', tripId)
       .eq('user_id', userId)
@@ -159,39 +144,49 @@ export async function getTripAvailabilityOverrides(
       .order('date');
 
     if (error) {
-      console.error('Error fetching trip availability overrides:', error);
-      return { overrides: null, error };
+      console.error('Error fetching trip user availability:', error);
+      return { availability: null, error };
     }
 
-    return { overrides: data.map(d => ({ ...d, availability_status: d.availability_status as AvailabilityStatus, override_reason: d.override_reason ?? undefined })), error: null };
+    return { 
+      availability: data.map(d => ({ 
+        ...d, 
+        availability_status: d.availability_status as AvailabilityStatus, 
+        override_reason: d.override_reason ?? undefined,
+        last_sync_date: d.last_sync_date ?? undefined
+      })), 
+      error: null 
+    };
   } catch (err) {
-    console.error('Unexpected error in getTripAvailabilityOverrides:', err);
-    return { overrides: null, error: err };
+    console.error('Unexpected error in getTripUserAvailability:', err);
+    return { availability: null, error: err };
   }
 }
 
 /**
- * Set trip-specific availability overrides
+ * Set trip-specific availability
  */
-export async function setTripAvailabilityOverrides(
+export async function setTripUserAvailability(
   tripId: string,
   userId: string,
-  overrides: Array<{
+  availability: Array<{
     date: string;
     availability_status: AvailabilityStatus;
     override_reason?: string;
+    synced_from_central?: boolean;
   }>
 ): Promise<{ success: boolean; error: any }> {
   try {
     const { error } = await supabase
-      .from('trip_availability_overrides')
+      .from('trip_user_availability')
       .upsert(
-        overrides.map(o => ({
+        availability.map(a => ({
           trip_id: tripId,
           user_id: userId,
-          date: o.date,
-          availability_status: o.availability_status,
-          override_reason: o.override_reason,
+          date: a.date,
+          availability_status: a.availability_status,
+          override_reason: a.override_reason,
+          synced_from_central: a.synced_from_central ?? false,
           updated_at: new Date().toISOString()
         })),
         {
@@ -201,42 +196,118 @@ export async function setTripAvailabilityOverrides(
       );
 
     if (error) {
-      console.error('Error setting trip availability overrides:', error);
+      console.error('Error setting trip user availability:', error);
       return { success: false, error };
     }
 
     return { success: true, error: null };
   } catch (err) {
-    console.error('Unexpected error in setTripAvailabilityOverrides:', err);
+    console.error('Unexpected error in setTripUserAvailability:', err);
     return { success: false, error: err };
   }
 }
 
 /**
- * Clear trip-specific availability overrides
+ * Clear trip-specific availability
  */
-export async function clearTripAvailabilityOverrides(
+export async function clearTripUserAvailability(
   tripId: string,
   userId: string,
   dates: string[]
 ): Promise<{ success: boolean; error: any }> {
   try {
     const { error } = await supabase
-      .from('trip_availability_overrides')
+      .from('trip_user_availability')
       .delete()
       .eq('trip_id', tripId)
       .eq('user_id', userId)
       .in('date', dates);
 
     if (error) {
-      console.error('Error clearing trip availability overrides:', error);
+      console.error('Error clearing trip user availability:', error);
       return { success: false, error };
     }
 
     return { success: true, error: null };
   } catch (err) {
-    console.error('Unexpected error in clearTripAvailabilityOverrides:', err);
+    console.error('Unexpected error in clearTripUserAvailability:', err);
     return { success: false, error: err };
+  }
+}
+
+// =====================================================
+// SYNC FUNCTIONS
+// =====================================================
+
+/**
+ * Sync central availability to trip calendar
+ */
+export async function syncCentralToTripAvailability(
+  userId: string,
+  tripId: string,
+  dateRange: DateRange
+): Promise<{ syncedCount: number; error: any }> {
+  try {
+    const { data, error } = await supabase
+      .rpc('sync_central_to_trip_availability', {
+        p_user_id: userId,
+        p_trip_id: tripId,
+        p_start_date: dateRange.start_date,
+        p_end_date: dateRange.end_date
+      })
+      .single();
+
+    if (error) {
+      console.error('Error syncing central to trip availability:', error);
+      return { syncedCount: 0, error };
+    }
+
+    return { syncedCount: data || 0, error: null };
+  } catch (err) {
+    console.error('Unexpected error in syncCentralToTripAvailability:', err);
+    return { syncedCount: 0, error: err };
+  }
+}
+
+/**
+ * Check if trip availability needs sync with central calendar
+ */
+export async function checkTripAvailabilitySyncStatus(
+  userId: string,
+  tripId: string,
+  dateRange: DateRange
+): Promise<{ 
+  needsSync: boolean; 
+  centralCount: number; 
+  tripCount: number; 
+  lastSync?: string;
+  error: any;
+}> {
+  try {
+    const { data, error } = await supabase
+      .rpc('check_trip_availability_sync_status', {
+        p_user_id: userId,
+        p_trip_id: tripId,
+        p_start_date: dateRange.start_date,
+        p_end_date: dateRange.end_date
+      })
+      .single();
+
+    if (error) {
+      console.error('Error checking sync status:', error);
+      return { needsSync: false, centralCount: 0, tripCount: 0, error };
+    }
+
+    return { 
+      needsSync: data.needs_sync,
+      centralCount: data.central_count,
+      tripCount: data.trip_count,
+      lastSync: data.last_sync,
+      error: null 
+    };
+  } catch (err) {
+    console.error('Unexpected error in checkTripAvailabilitySyncStatus:', err);
+    return { needsSync: false, centralCount: 0, tripCount: 0, error: err };
   }
 }
 
@@ -348,16 +419,16 @@ export async function getTripMembersAvailability(
       return { availability: null, error: baseError };
     }
 
-    // Get trip-specific overrides
-    const { data: overrides, error: overridesError } = await supabase
-      .from('trip_availability_overrides')
+    // Get trip-specific availability
+    const { data: tripAvailability, error: tripError } = await supabase
+      .from('trip_user_availability')
       .select('user_id, date, availability_status, override_reason')
       .eq('trip_id', tripId)
       .gte('date', dateRange.start_date)
       .lte('date', dateRange.end_date);
 
-    if (overridesError) {
-      return { availability: null, error: overridesError };
+    if (tripError) {
+      return { availability: null, error: tripError };
     }
 
     // Generate all date combinations and merge data
@@ -373,24 +444,24 @@ export async function getTripMembersAvailability(
 
     for (const member of members) {
       for (const date of dates) {
-        const override = overrides?.find(o => o.user_id === member.user_id && o.date === date);
-        const base = baseAvailability?.find(b => b.user_id === member.user_id && b.date === date);
+        const tripSpecific = tripAvailability?.find(t => t.user_id === member.user_id && t.date === date);
+        const central = baseAvailability?.find(b => b.user_id === member.user_id && b.date === date);
 
-        if (override) {
+        if (tripSpecific) {
           result.push({
             user_id: member.user_id,
             date,
-            status: override.availability_status as AvailabilityStatus,
+            status: tripSpecific.availability_status as AvailabilityStatus,
             is_override: true,
-            override_reason: override.override_reason ?? undefined
+            override_reason: tripSpecific.override_reason ?? undefined
           });
-        } else if (base) {
+        } else if (central) {
           result.push({
             user_id: member.user_id,
             date,
-            status: base.availability_status as AvailabilityStatus,
+            status: central.availability_status as AvailabilityStatus,
             is_override: false,
-            notes: base.notes ?? undefined
+            notes: central.notes ?? undefined
           });
         } else {
           // Default to available if no specific availability is set
@@ -456,4 +527,102 @@ export function getMonthDateRange(year: number, month: number): DateRange {
     start_date: startDate.toISOString().split('T')[0],
     end_date: endDate.toISOString().split('T')[0]
   };
+}
+
+// =====================================================
+// COMPATIBILITY FUNCTIONS FOR EXISTING COMPONENTS
+// =====================================================
+
+/**
+ * Backward compatibility function - maps to trip-specific availability
+ * @deprecated Use getTripUserAvailability instead
+ */
+export async function getUserAvailability(
+  userId: string,
+  dateRange: DateRange,
+  tripId?: string
+): Promise<{ availability: UserAvailability[] | null; error: any }> {
+  if (tripId) {
+    // If tripId provided, get trip-specific availability
+    const result = await getTripUserAvailability(tripId, userId, dateRange);
+    if (result.error) return { availability: null, error: result.error };
+    
+    // Map to old format
+    const mapped = result.availability?.map(a => ({
+      id: a.id,
+      user_id: a.user_id,
+      date: a.date,
+      availability_status: a.availability_status,
+      notes: a.override_reason,
+      created_at: a.created_at,
+      updated_at: a.updated_at
+    })) || null;
+    
+    return { availability: mapped, error: null };
+  } else {
+    // Otherwise get central availability
+    return getUserCentralAvailability(userId, dateRange);
+  }
+}
+
+/**
+ * Backward compatibility function - maps to trip-specific availability setting
+ * @deprecated Use setTripUserAvailability instead
+ */
+export async function setUserAvailability(
+  userId: string,
+  dates: Array<{
+    date: string;
+    availability_status: AvailabilityStatus;
+    notes?: string;
+  }>,
+  tripId?: string
+): Promise<{ success: boolean; error: any }> {
+  if (tripId) {
+    // If tripId provided, set trip-specific availability
+    const mapped = dates.map(d => ({
+      date: d.date,
+      availability_status: d.availability_status,
+      override_reason: d.notes,
+      synced_from_central: false
+    }));
+    
+    return setTripUserAvailability(tripId, userId, mapped);
+  } else {
+    // Otherwise set central availability
+    return setUserCentralAvailability(userId, dates);
+  }
+}
+
+/**
+ * Clear user's availability for specific dates
+ * @deprecated Use clearTripUserAvailability or clear central availability directly
+ */
+export async function clearUserAvailability(
+  userId: string,
+  dates: string[],
+  tripId?: string
+): Promise<{ success: boolean; error: any }> {
+  if (tripId) {
+    return clearTripUserAvailability(tripId, userId, dates);
+  } else {
+    // Clear from central availability
+    try {
+      const { error } = await supabase
+        .from('user_availability')
+        .delete()
+        .eq('user_id', userId)
+        .in('date', dates);
+
+      if (error) {
+        console.error('Error clearing central user availability:', error);
+        return { success: false, error };
+      }
+
+      return { success: true, error: null };
+    } catch (err) {
+      console.error('Unexpected error in clearUserAvailability:', err);
+      return { success: false, error: err };
+    }
+  }
 }

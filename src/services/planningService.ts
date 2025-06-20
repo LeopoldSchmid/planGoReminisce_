@@ -2,7 +2,7 @@ import { createSupabaseBrowserClient } from '@/lib/supabaseClient';
 
 const supabase = createSupabaseBrowserClient();
 
-export type VoteType = 'upvote' | 'downvote' | 'neutral';
+export type VoteType = 'available' | 'maybe' | 'unavailable';
 
 export interface DateProposal {
   id: string;
@@ -112,24 +112,40 @@ export async function createDateProposal(
   }
 ): Promise<{ proposal: DateProposal | null; error: any }> {
   try {
+    console.log('planningService: createDateProposal called with:', {
+      tripId,
+      proposedBy,
+      proposal
+    });
+
+    const insertData = {
+      trip_id: tripId,
+      proposed_by: proposedBy,
+      title: proposal.title,
+      start_date: proposal.start_date,
+      end_date: proposal.end_date,
+      notes: proposal.notes
+    };
+    console.log('Inserting data into date_proposals:', insertData);
+
     const { data, error } = await supabase
       .from('date_proposals')
-      .insert({
-        trip_id: tripId,
-        proposed_by: proposedBy,
-        title: proposal.title,
-        start_date: proposal.start_date,
-        end_date: proposal.end_date,
-        notes: proposal.notes
-      })
+      .insert(insertData)
       .select()
       .single();
 
     if (error) {
-      console.error('Error creating date proposal:', error);
+      console.error('Database error creating date proposal:', error);
+      console.error('Error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
       return { proposal: null, error };
     }
 
+    console.log('Successfully created date proposal:', data);
     return { proposal: data, error: null };
   } catch (err) {
     console.error('Unexpected error in createDateProposal:', err);
@@ -505,13 +521,33 @@ export async function getProposalStats(
 
     if (error) {
       console.error('Error fetching proposal stats:', error);
-      return { stats: null, error };
+      // Return default stats instead of failing completely
+      return { 
+        stats: {
+          upvotes: 0,
+          downvotes: 0,
+          neutral_votes: 0,
+          total_votes: 0,
+          net_score: 0
+        }, 
+        error 
+      };
     }
 
     return { stats: data, error: null };
   } catch (err) {
     console.error('Unexpected error in getProposalStats:', err);
-    return { stats: null, error: err };
+    // Return default stats on error
+    return { 
+      stats: {
+        upvotes: 0,
+        downvotes: 0,
+        neutral_votes: 0,
+        total_votes: 0,
+        net_score: 0
+      }, 
+      error: err 
+    };
   }
 }
 
@@ -595,10 +631,9 @@ export async function getDiscussions(
       query = query.eq('date_proposal_id', options.date_proposal_id);
     } else if (options?.destination_proposal_id) {
       query = query.eq('destination_proposal_id', options.destination_proposal_id);
-    } else {
-      // General trip discussion (not linked to any proposal)
-      query = query.is('date_proposal_id', null).is('destination_proposal_id', null);
     }
+    // If no specific proposal ID is provided, get ALL discussions for the trip
+    // (no additional filtering needed - already filtered by trip_id)
 
     const { data, error } = await query;
 

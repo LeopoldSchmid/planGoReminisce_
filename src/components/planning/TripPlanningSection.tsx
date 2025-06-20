@@ -107,16 +107,27 @@ export function TripPlanningSection({
   const canCreateProposals = currentUserRole !== undefined; // Any trip member can create proposals
   const canFinalize = currentUserRole === 'owner' || currentUserRole === 'co-owner';
 
-  // Date range for queries (next 3 months)
-  const dateRange = getNextNDays(90);
+  // Date range for queries (past month + next 3 months to include test data)
+  const dateRange = React.useMemo(() => {
+    const today = new Date();
+    const startDate = new Date(today);
+    startDate.setDate(today.getDate() - 30); // Include past 30 days
+    const endDate = new Date(today);
+    endDate.setDate(today.getDate() + 90); // Include next 90 days
+    
+    return {
+      start_date: startDate.toISOString().split('T')[0],
+      end_date: endDate.toISOString().split('T')[0]
+    };
+  }, []);
 
   // ===== QUERIES =====
 
-  // User's availability
+  // User's trip-specific availability 
   const { data: userAvailability } = useQuery({
-    queryKey: ['userAvailability', currentUserId, dateRange],
-    queryFn: () => getUserAvailability(currentUserId, dateRange),
-    enabled: !!currentUserId,
+    queryKey: ['userTripAvailability', tripId, currentUserId, dateRange],
+    queryFn: () => getUserAvailability(currentUserId, dateRange, tripId), // Pass tripId for trip-specific
+    enabled: !!currentUserId && !!tripId,
   });
 
   // Trip availability heatmap
@@ -140,7 +151,19 @@ export function TripPlanningSection({
     enabled: !!tripId,
   });
 
-  // Discussion for selected proposal
+  // All discussions for the trip (to map to date ranges)
+  const { data: allDiscussionsData } = useQuery({
+    queryKey: ['allProposalDiscussions', tripId],
+    queryFn: () => {
+      // Get discussions for all date proposals
+      return getDiscussions(tripId, {
+        include_replies: true
+      });
+    },
+    enabled: !!tripId,
+  });
+
+  // Discussion for selected proposal (for the dialog)
   const { data: discussionData } = useQuery({
     queryKey: ['proposalDiscussion', tripId, selectedDiscussionProposal?.type, selectedDiscussionProposal?.id],
     queryFn: () => {
@@ -163,11 +186,11 @@ export function TripPlanningSection({
         date,
         availability_status: status
       }));
-      return setUserAvailability(currentUserId, dateArray);
+      return setUserAvailability(currentUserId, dateArray, tripId); // Pass tripId for trip-specific
     },
     onSuccess: () => {
       toast.success('Availability updated successfully!');
-      queryClient.invalidateQueries({ queryKey: ['userAvailability'] });
+      queryClient.invalidateQueries({ queryKey: ['userTripAvailability'] });
       queryClient.invalidateQueries({ queryKey: ['tripAvailabilityHeatmap'] });
     },
     onError: (error: Error) => {
@@ -182,14 +205,7 @@ export function TripPlanningSection({
       return result.proposal; // may be null if error handled upstream
     },
     onSuccess: (created) => {
-      if (created) {
-        // Immediately register creator's availability as a positive vote
-        voteMutation.mutate({
-          proposalId: created.id,
-          proposalType: 'date',
-          voteType: 'upvote'
-        });
-      }
+      // Auto-vote is now handled by database trigger
       toast.success('Date proposal created successfully!');
       queryClient.invalidateQueries({ queryKey: ['dateProposals'] });
       setIsCreateDateDialogOpen(false);
@@ -252,6 +268,7 @@ export function TripPlanningSection({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['proposalDiscussion'] });
+      queryClient.invalidateQueries({ queryKey: ['allProposalDiscussions'] });
     },
   });
 
@@ -287,62 +304,125 @@ export function TripPlanningSection({
   const transformToDateRanges = (): DateRange[] => {
     if (!dateProposalsData?.proposals) return [];
 
-    return dateProposalsData.proposals.map(proposal => ({
-      id: proposal.id,
-      name: proposal.title,
-      startDate: proposal.start_date,
-      endDate: proposal.end_date,
-      comment: proposal.notes,
-      createdBy: proposal.proposed_by,
-      createdByName: proposal.proposed_by_profile?.full_name || proposal.proposed_by_profile?.username || 'Unknown',
-      votes: {
-        available: proposal.vote_stats?.upvotes || 0,
-        canWork: proposal.vote_stats?.neutral_votes || 0,
-        total: proposal.vote_stats?.total_votes || 0
-      },
-      discussions: discussionData?.discussions?.map(discussion => ({
-        id: discussion.id,
-        user: discussion.user_id,
-        userName: discussion.username || 'Anonymous',
-        message: discussion.comment_text,
-        timestamp: new Date(discussion.created_at).toLocaleString()
-      })) || []
-    }));
+    console.log('transformToDateRanges called with:', {
+      proposalsCount: dateProposalsData.proposals.length,
+      discussionsCount: allDiscussionsData?.discussions?.length || 0
+    });
+
+    return dateProposalsData.proposals.map(proposal => {
+      // Get discussions for this specific proposal
+      const proposalDiscussions = allDiscussionsData?.discussions?.filter(d => 
+        d.date_proposal_id === proposal.id
+      ) || [];
+
+      console.log(`Proposal ${proposal.id} has ${proposalDiscussions.length} discussions:`, proposalDiscussions);
+
+      return {
+        id: proposal.id,
+        name: proposal.title,
+        startDate: proposal.start_date,
+        endDate: proposal.end_date,
+        comment: proposal.notes,
+        createdBy: proposal.proposed_by,
+        createdByName: proposal.proposed_by_profile?.full_name || proposal.proposed_by_profile?.username || 'Unknown',
+        votes: {
+          available: proposal.vote_stats?.upvotes || 0,
+          canWork: proposal.vote_stats?.neutral_votes || 0,
+          total: proposal.vote_stats?.total_votes || 0
+        },
+        discussions: proposalDiscussions.map(discussion => ({
+          id: discussion.id,
+          user: discussion.user_id,
+          userName: discussion.user_profile?.username || discussion.user_profile?.full_name || 'Anonymous',
+          message: discussion.comment_text,
+          timestamp: new Date(discussion.created_at).toLocaleString()
+        }))
+      };
+    });
   };
 
   const handleCreateDateRange = async (range: { name: string; startDate: string; endDate: string; comment?: string }) => {
     try {
-      await createDateProposalMutation.mutateAsync({
+      console.log('TripPlanningSection: handleCreateDateRange called with:', range);
+      console.log('tripId:', tripId);
+      console.log('currentUserId:', currentUserId);
+      
+      const proposalData = {
         title: range.name,
         start_date: range.startDate,
         end_date: range.endDate,
         notes: range.comment
-      });
+      };
+      console.log('Creating date proposal with data:', proposalData);
+      
+      const result = await createDateProposalMutation.mutateAsync(proposalData);
+      console.log('Date proposal creation result:', result);
     } catch (error) {
       console.error('Failed to create date range:', error);
+      toast.error('Failed to create date range');
     }
   };
 
-  const handleDiscussionUpdate = async (rangeId: string, message: string) => {
+  // Auto-save availability changes when selectedDates changes
+  const handleDatesChange = (dates: Map<string, AvailabilityStatus>) => {
+    console.log('Dates changed:', dates);
+    setSelectedDates(dates);
+    
+    // Auto-save availability changes
+    if (dates.size > 0) {
+      const dateArray = Array.from(dates.entries()).map(([date, status]) => ({
+        date,
+        availability_status: status
+      }));
+      console.log('Auto-saving availability:', dateArray);
+      saveAvailabilityMutation.mutate(new Map(dates));
+    }
+  };
+
+  const handleDiscussionUpdate = async (rangeId: string, message: string, parentCommentId?: string) => {
     try {
-      await createCommentMutation.mutateAsync({
-        text: message,
-        proposalType: 'date',
-        proposalId: rangeId
-      });
+      console.log('Creating discussion comment:', { rangeId, message, parentCommentId, tripId, currentUserId });
+      
+      const commentData: any = {
+        comment_text: message,
+        date_proposal_id: rangeId,
+      };
+      
+      if (parentCommentId) {
+        commentData.parent_comment_id = parentCommentId;
+      }
+      
+      const result = await createComment(tripId, currentUserId, commentData);
+      console.log('Discussion comment created:', result);
+      
+      // Invalidate discussions query to refresh the UI
+      queryClient.invalidateQueries({ queryKey: ['allProposalDiscussions'] });
+      queryClient.invalidateQueries({ queryKey: ['dateProposals'] });
     } catch (error) {
       console.error('Failed to add discussion:', error);
     }
   };
 
+  const handleRefreshData = () => {
+    queryClient.invalidateQueries({ queryKey: ['dateProposals'] });
+    queryClient.invalidateQueries({ queryKey: ['allProposalDiscussions'] });
+    queryClient.invalidateQueries({ queryKey: ['userTripAvailability'] });
+    queryClient.invalidateQueries({ queryKey: ['tripAvailabilityHeatmap'] });
+  };
+
   // Initialize user availability in calendar
   React.useEffect(() => {
     if (userAvailability?.availability) {
+      console.log('Loading user availability:', userAvailability.availability);
       const availabilityMap = new Map<string, AvailabilityStatus>();
       userAvailability.availability.forEach(item => {
+        console.log('Setting availability for date:', item.date, 'status:', item.availability_status);
         availabilityMap.set(item.date, item.availability_status);
       });
       setSelectedDates(availabilityMap);
+    } else {
+      console.log('No user availability data found, clearing selectedDates');
+      setSelectedDates(new Map());
     }
   }, [userAvailability]);
 
@@ -351,9 +431,10 @@ export function TripPlanningSection({
       {useEnhancedView ? (
         // New Enhanced Mobile-First UX
         <EnhancedAvailabilityView
+          tripId={tripId}
           tripName={tripName}
           selectedDates={selectedDates}
-          onDatesChange={setSelectedDates}
+          onDatesChange={handleDatesChange}
           dateRanges={transformToDateRanges()}
           onCreateDateRange={handleCreateDateRange}
           onDiscussionUpdate={handleDiscussionUpdate}
@@ -368,6 +449,7 @@ export function TripPlanningSection({
               toast.error(error?.message || 'Failed to delete date range');
             }
           }}
+          onRefreshData={handleRefreshData}
           currentUserId={currentUserId}
           currentUserName="Current User"
         />
