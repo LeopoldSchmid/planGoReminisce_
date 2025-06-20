@@ -5,12 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ChevronLeft, ChevronRight, Plus, MessageSquare, Send, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -69,6 +64,8 @@ const MONTHS = [
 
 const DAYS = ['S', 'M', 'T', 'W', 'Th', 'F', 'S'];
 
+const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+
 export function EnhancedAvailabilityView({
   tripName,
   selectedDates,
@@ -87,6 +84,7 @@ export function EnhancedAvailabilityView({
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartDate, setDragStartDate] = useState<string | null>(null);
   const [selectedRange, setSelectedRange] = useState<{ start: Date; end: Date } | null>(null);
+  const [pendingStartDate, setPendingStartDate] = useState<Date | null>(null); // first tap on mobile
   const [selectedAvailabilityType, setSelectedAvailabilityType] = useState<AvailabilityStatus>('available');
   
   // Modal states
@@ -185,18 +183,52 @@ export function EnhancedAvailabilityView({
     });
   };
 
+  // Helper to format dd.mm.yy string
+  const formatDate = (date: Date) => {
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear().toString().slice(-2);
+    return `${day}.${month}.${year}`;
+  };
+
+  const openRangeModal = (start: Date, end: Date) => {
+    setSelectedRange({ start, end });
+    setRangeName(`${formatDate(start)}-${formatDate(end)}`);
+    setIsAddRangeModalOpen(true);
+  };
+
   const handleDateClick = (calendarDate: CalendarDate) => {
     if (!calendarDate.isCurrentMonth) return; // Only allow clicking current month dates
-    
-    const dateStr = calendarDate.date;
-    const newDates = new Map(selectedDates);
-    
-    // Set the availability for this date to the selected type
-    newDates.set(dateStr, selectedAvailabilityType);
-    onDatesChange(newDates);
+
+    const clicked = new Date(calendarDate.date);
+
+    // Mobile tap flow: first tap selects start, second tap selects end
+    if (!pendingStartDate) {
+      setPendingStartDate(clicked);
+      return;
+    }
+
+    // Second tap
+    const start = pendingStartDate <= clicked ? pendingStartDate : clicked;
+    const end = pendingStartDate <= clicked ? clicked : pendingStartDate;
+
+    // If same day, directly paint availability and reset
+    if (start.getTime() === end.getTime()) {
+      const dateStr = clicked.toISOString().split('T')[0];
+      const newDates = new Map(selectedDates);
+      newDates.set(dateStr, selectedAvailabilityType);
+      onDatesChange(newDates);
+      setPendingStartDate(null);
+      return;
+    }
+
+    // Multi-day, open modal for naming/comment
+    openRangeModal(start, end);
+    setPendingStartDate(null);
   };
 
   const handleMouseEnter = (calendarDate: CalendarDate) => {
+    if (isTouchDevice) return; // disable hover logic on touch
     if (!isDragging || !dragStartDate || !calendarDate.isCurrentMonth) return;
 
     const startDate = new Date(dragStartDate);
@@ -207,6 +239,7 @@ export function EnhancedAvailabilityView({
   };
 
   const handleMouseDown = (calendarDate: CalendarDate) => {
+    if (isTouchDevice) return; // skip drag logic on touch
     if (!calendarDate.isCurrentMonth) return;
     
     setIsDragging(true);
@@ -285,6 +318,11 @@ export function EnhancedAvailabilityView({
       baseClasses.push('ring-2 ring-orange-500 ring-offset-1 animate-pulse');
     }
 
+    // Pending start highlight
+    if (pendingStartDate && new Date(calendarDate.date).getTime() === pendingStartDate.getTime()) {
+      baseClasses.push('ring-2 ring-orange-400');
+    }
+
     // Range selection highlight with morphing effect
     if (isInRange) {
       baseClasses.push('bg-orange-100 border-orange-300 shadow-lg animate-in slide-in-from-top-1 duration-200');
@@ -303,17 +341,9 @@ export function EnhancedAvailabilityView({
   };
 
   const handleMouseUpCallback = useCallback(() => {
+    if (isTouchDevice) return;
     if (selectedRange && selectedRange.start.getTime() !== selectedRange.end.getTime()) {
-      // Multi-day range selected, open modal
-      const formatDate = (date: Date) => {
-        const day = date.getDate().toString().padStart(2, '0');
-        const month = (date.getMonth() + 1).toString().padStart(2, '0');
-        const year = date.getFullYear().toString().slice(-2);
-        return `${day}.${month}.${year}`;
-      };
-      
-      setRangeName(`${formatDate(selectedRange.start)}-${formatDate(selectedRange.end)}`);
-      setIsAddRangeModalOpen(true);
+      openRangeModal(selectedRange.start, selectedRange.end);
     }
     
     setIsDragging(false);
@@ -329,24 +359,6 @@ export function EnhancedAvailabilityView({
 
   return (
     <div className={cn('max-w-md mx-auto', className)}>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center text-white font-bold">
-            P
-          </div>
-          <h1 className="text-xl font-semibold">{tripName}</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
-            3
-          </div>
-          <div className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center">
-            <div className="w-4 h-4 rounded-full bg-gray-300"></div>
-          </div>
-        </div>
-      </div>
-
       {/* Tab Navigation */}
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'availability' | 'summary')} className="w-full">
         <TabsList className="grid w-full grid-cols-2 mb-6">
@@ -547,22 +559,22 @@ export function EnhancedAvailabilityView({
         </Button>
       </div>
 
-      {/* Add Date Range Modal */}
-      <Dialog open={isAddRangeModalOpen} onOpenChange={setIsAddRangeModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Add Date Range</DialogTitle>
+      {/* Add Date Range Sheet */}
+      <Sheet open={isAddRangeModalOpen} onOpenChange={setIsAddRangeModalOpen}> 
+        <SheetContent side="bottom" className="w-full pt-4 pb-8 rounded-t-2xl max-h-[80vh] overflow-y-auto bg-white text-gray-900 dark:bg-white dark:text-gray-900 shadow-xl">
+          <SheetHeader className="relative">
+            <SheetTitle>Add Date Range</SheetTitle>
             <Button
               variant="ghost"
               size="sm"
-              className="absolute right-4 top-4"
+              className="absolute right-4 top-1"
               onClick={handleCancelRange}
             >
               <X className="h-4 w-4" />
             </Button>
-          </DialogHeader>
+          </SheetHeader>
 
-          <div className="space-y-4">
+          <div className="space-y-4 mt-4">
             <div>
               <label className="text-sm font-medium">Range Name</label>
               <Input
@@ -584,7 +596,7 @@ export function EnhancedAvailabilityView({
             </div>
 
             <div className="flex gap-3 pt-2">
-              <Button onClick={handleSaveRange} className="flex-1 bg-orange-500 hover:bg-orange-600">
+              <Button onClick={handleSaveRange} className="flex-1 bg-orange-500 hover:bg-orange-600 text-white">
                 Save Range
               </Button>
               <Button onClick={handleCancelRange} variant="outline" className="flex-1">
@@ -592,8 +604,8 @@ export function EnhancedAvailabilityView({
               </Button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
