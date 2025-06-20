@@ -1,17 +1,25 @@
 "use client";
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
+import { CardContent } from '@/components/ui/card';
+import { DateProposalCard } from './DateProposalCard';
+import { EnhancedDateProposal } from '@/services/planningService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ChevronLeft, ChevronRight, Plus, X, Edit2, Trash2, EyeOff, CheckCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, Edit2, Trash2, EyeOff, CheckCircle, CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AvailabilityStatus, getTripAvailabilityHeatmap, AvailabilityHeatmapData } from '@/services/availabilityService';
 import { ProposalDiscussion } from './ProposalDiscussion';
 import { useQuery } from '@tanstack/react-query';
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
+import { DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Calendar } from "@/components/ui/calendar";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface DateRange {
   id: string;
@@ -113,6 +121,21 @@ export function EnhancedAvailabilityView({
   const [showFabMenu, setShowFabMenu] = useState(false);
   const [activeFabCardId, setActiveFabCardId] = useState<string | null>(null);
 
+  // Add state for discussion sheet
+  const [showDiscussionSheet, setShowDiscussionSheet] = useState(false);
+
+  // Add state for start and end date
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
+  const [startPickerOpen, setStartPickerOpen] = useState(false);
+  const [endPickerOpen, setEndPickerOpen] = useState(false);
+
+  // Add state for proposal title
+  const [proposalTitle, setProposalTitle] = useState('');
+
+  // Add state for which calendar sheet is open
+  const [calendarSheet, setCalendarSheet] = useState<'start' | 'end' | null>(null);
+
   const currentMonth = currentDate.getMonth();
   const currentYear = currentDate.getFullYear();
 
@@ -120,7 +143,7 @@ export function EnhancedAvailabilityView({
   const heatmapDateRange = React.useMemo(() => {
     const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
     const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
-    
+
     return {
       start_date: firstDayOfMonth.toISOString().split('T')[0],
       end_date: lastDayOfMonth.toISOString().split('T')[0]
@@ -328,62 +351,21 @@ export function EnhancedAvailabilityView({
   };
 
 
-  const handleSaveRange = async () => {
-    console.log('handleSaveRange called');
-    console.log('selectedRange:', selectedRange);
-    console.log('pendingRangeData:', pendingRangeData);
-    console.log('rangeName:', rangeName);
-    console.log('rangeComment:', rangeComment);
-    
-    // Use pendingRangeData as fallback if selectedRange is null
-    const rangeToUse = selectedRange || pendingRangeData;
-    
-    if (!rangeToUse) {
-      console.log('Early return - missing range data');
-      return;
-    }
-
-    if (!rangeName.trim()) {
-      console.log('Early return - missing rangeName');
-      return;
-    }
-
-    console.log('Creating date range with data:', {
-      name: rangeName.trim(),
-      startDate: toYMD(rangeToUse.start),
-      endDate: toYMD(rangeToUse.end),
-      comment: rangeComment.trim() || undefined
-    });
-
+  const handleSaveRange = async (start: Date, end: Date, title: string) => {
+    if (!start || !end || !title.trim()) return;
     try {
-      // First, notify parent about new range creation
       await onCreateDateRange({
-        name: rangeName.trim(),
-        startDate: toYMD(rangeToUse.start),
-        endDate: toYMD(rangeToUse.end),
+        name: title.trim(),
+        startDate: toYMD(start),
+        endDate: toYMD(end),
         comment: rangeComment.trim() || undefined
       });
-
-      // Paint availability for all dates in the range
-      console.log('Painting range with availability type:', selectedAvailabilityType);
-      const newDates = new Map(selectedDates);
-      let cur = new Date(rangeToUse.start);
-      const end = new Date(rangeToUse.end);
-      while (cur <= end) {
-        const dateStr = toYMD(cur);
-        console.log('Setting date', dateStr, 'to', selectedAvailabilityType);
-        newDates.set(dateStr, selectedAvailabilityType);
-        cur.setDate(cur.getDate() + 1);
-      }
-      onDatesChange(newDates);
-
-      // Reset state after successful creation
-      setSelectedRange(null);
       setPendingRangeData(null);
-      setRangeName('');
+      setProposalTitle('');
       setRangeComment('');
       setIsAddRangeModalOpen(false);
-      console.log('handleSaveRange completed successfully');
+      setStartDate(null);
+      setEndDate(null);
     } catch (error) {
       console.error('Error in handleSaveRange:', error);
     }
@@ -529,376 +511,391 @@ export function EnhancedAvailabilityView({
     closeFabMenu();
   };
 
-  return (
-    <div className={cn('max-w-md mx-auto', className)}>
-      {/* Tab Navigation */}
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'availability' | 'summary')} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 mb-6">
-          <TabsTrigger value="availability" className="rounded-l-full">Select Availability</TabsTrigger>
-          <TabsTrigger value="summary" className="rounded-r-full">Summary</TabsTrigger>
-        </TabsList>
+  // Helper function to render the main content
+  const renderContent = () => {
+    return (
+      <div className={cn('max-w-md mx-auto', className)}>
+        {/* Tab Navigation */}
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'availability' | 'summary')} className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsTrigger value="availability" className="rounded-l-full">Select Availability</TabsTrigger>
+            <TabsTrigger value="summary" className="rounded-r-full">Summary</TabsTrigger>
+          </TabsList>
 
-        {/* Select Availability Tab */}
-        <TabsContent value="availability" className="space-y-4">
-          {/* View Toggle */}
-          <div className="flex items-center justify-center mb-4">
-            <div className="flex items-center gap-1 p-1 bg-muted rounded-lg">
-              <Button
-                variant={availabilityView === 'personal' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setAvailabilityView('personal')}
-                className="text-xs"
-              >
-                Personal
+          {/* Select Availability Tab */}
+          <TabsContent value="availability" className="space-y-4">
+            {/* View Toggle */}
+            <div className="flex items-center justify-center mb-4">
+              <div className="flex items-center gap-1 p-1 bg-muted rounded-lg">
+                <Button
+                  variant={availabilityView === 'personal' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setAvailabilityView('personal')}
+                  className="text-xs"
+                >
+                  Personal
+                </Button>
+                <Button
+                  variant={availabilityView === 'group' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setAvailabilityView('group')}
+                  className="text-xs"
+                >
+                  Group
+                </Button>
+              </div>
+            </div>
+
+            {/* Calendar Navigation */}
+            <div className="flex items-center justify-between mb-4">
+              <Button variant="ghost" size="sm" onClick={() => navigateMonth('prev')}>
+                <ChevronLeft className="h-4 w-4" />
               </Button>
-              <Button
-                variant={availabilityView === 'group' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setAvailabilityView('group')}
-                className="text-xs"
-              >
-                Group
+              <h2 className="text-lg font-semibold">
+                {MONTHS[currentMonth]} {currentYear}
+              </h2>
+              <Button variant="ghost" size="sm" onClick={() => navigateMonth('next')}>
+                <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
-          </div>
 
-          {/* Calendar Navigation */}
-          <div className="flex items-center justify-between mb-4">
-            <Button variant="ghost" size="sm" onClick={() => navigateMonth('prev')}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <h2 className="text-lg font-semibold">
-              {MONTHS[currentMonth]} {currentYear}
-            </h2>
-            <Button variant="ghost" size="sm" onClick={() => navigateMonth('next')}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-
-          {/* Availability Type Selector - Only shown in personal view */}
-          {availabilityView === 'personal' && (
-            <div className="flex items-center justify-center gap-3 mb-4">
-            <button
-              onClick={() => {
-                console.log('Setting availability type to: available');
-                setSelectedAvailabilityType('available' as AvailabilityStatus);
-              }}
-              className={cn(
-                "flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200",
-                selectedAvailabilityType === 'available'
-                  ? "bg-green-100 border border-green-300 shadow-sm"
-                  : "hover:bg-gray-50"
-              )}
-            >
-              <div className="w-4 h-4 bg-green-500 rounded-full transition-all duration-200"></div>
-              {selectedAvailabilityType === 'available' && (
-                <span className="text-sm font-medium text-green-700">Available</span>
-              )}
-            </button>
-            <button
-              onClick={() => {
-                console.log('Setting availability type to: maybe');
-                setSelectedAvailabilityType('maybe' as AvailabilityStatus);
-              }}
-              className={cn(
-                "flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200",
-                selectedAvailabilityType === 'maybe'
-                  ? "bg-orange-100 border border-orange-300 shadow-sm"
-                  : "hover:bg-gray-50"
-              )}
-            >
-              <div className="w-4 h-4 bg-orange-500 rounded-full transition-all duration-200"></div>
-              {selectedAvailabilityType === 'maybe' && (
-                <span className="text-sm font-medium text-orange-700">Can work</span>
-              )}
-            </button>
-            <button
-              onClick={() => {
-                console.log('Setting availability type to: unavailable');
-                setSelectedAvailabilityType('unavailable' as AvailabilityStatus);
-              }}
-              className={cn(
-                "flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200",
-                selectedAvailabilityType === 'unavailable'
-                  ? "bg-red-100 border border-red-300 shadow-sm"
-                  : "hover:bg-gray-50"
-              )}
-            >
-              <div className="w-4 h-4 bg-red-500 rounded-full transition-all duration-200"></div>
-              {selectedAvailabilityType === 'unavailable' && (
-                <span className="text-sm font-medium text-red-700">Unavailable</span>
-              )}
-            </button>
-            </div>
-          )}
-
-          {/* Group View Information */}
-          {availabilityView === 'group' && (
-            <div className="text-center mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-              <p className="text-sm text-blue-800">
-                <strong>Group View:</strong> Shows team availability percentages.
-                Colors indicate how many team members are available each day.
-              </p>
-              <div className="flex items-center justify-center gap-4 mt-2 text-xs">
-                <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 bg-green-200 border border-green-300 rounded"></div>
-                  <span>75%+ available</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 bg-yellow-200 border border-yellow-300 rounded"></div>
-                  <span>50-74%</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 bg-orange-200 border border-orange-300 rounded"></div>
-                  <span>25-49%</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 bg-red-200 border border-red-300 rounded"></div>
-                  <span>&lt;25%</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Calendar Grid */}
-          <Card>
-            <CardContent className="p-4">
-              {/* Days header */}
-              <div className="grid grid-cols-7 gap-1 mb-2">
-                {DAYS.map((day, i) => (
-                  <div key={`${day}-${i}`} className="text-center text-sm font-medium text-muted-foreground py-2">
-                    {day}
-                  </div>
-                ))}
-              </div>
-
-              {/* Calendar dates */}
-              <div className="grid grid-cols-7 gap-1" onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
-                {calendarDates.map((calendarDate, index) => {
-                  const groupData = availabilityView === 'group' ? getGroupAvailabilityForDate(calendarDate.date) : null;
-                  
-                  return (
-                    <div
-                      key={index}
-                      className={getDateStyle(calendarDate)}
-                      onMouseDown={() => handleMouseDown(calendarDate)}
-                      onMouseEnter={() => handleMouseEnter(calendarDate)}
-                      onClick={() => handleDateClick(calendarDate)}
-                      title={
-                        availabilityView === 'group' && groupData
-                          ? `${groupData.available_count}/${groupData.total_members} available (${groupData.availability_percentage}%)`
-                          : undefined
-                      }
-                    >
-                      {availabilityView === 'group' && groupData && groupData.total_members > 0 ? (
-                        <div className="flex flex-col items-center">
-                          <span className="text-xs">{calendarDate.day}</span>
-                          <span className="text-xs font-bold">{Math.round(groupData.availability_percentage)}%</span>
-                        </div>
-                      ) : (
-                        calendarDate.day
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-
-        </TabsContent>
-
-        {/* Summary Tab */}
-        <TabsContent value="summary" className="space-y-4">
-          {dateRanges.map(range => {
-            const unavailableVotes = Math.max(0, range.votes.total - range.votes.available - range.votes.canWork);
-            const mappedDiscussions = range.discussions.map(d => ({
-              id: d.id,
-              trip_id: '',
-              user_id: d.user,
-              comment_text: d.message,
-              is_edited: false,
-              created_at: d.timestamp,
-              updated_at: d.timestamp,
-              user_profile: { username: d.userName },
-              replies: []
-            }));
-            const isExpanded = expandedCardId === range.id;
-            const userHasVoted = range.votes.available > 0 || range.votes.canWork > 0;
-            return (
-              <Card key={range.id} className="relative transition-all duration-300 hover:scale-[1.02] hover:shadow-lg">
-                {/* Card Header - only this toggles expansion */}
-                <div
-                  className="flex items-center justify-between cursor-pointer select-none p-4"
+            {/* Availability Type Selector - Only shown in personal view */}
+            {availabilityView === 'personal' && (
+              <div className="flex items-center justify-center gap-3 mb-4">
+                <button
                   onClick={() => {
-                    const newExpandedId = isExpanded ? null : range.id;
-                    setExpandedCardId(newExpandedId);
-                    // Close FAB menu when collapsing
-                    if (!newExpandedId) {
-                      closeFabMenu();
-                    }
+                    console.log('Setting availability type to: available');
+                    setSelectedAvailabilityType('available' as AvailabilityStatus);
                   }}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center text-white text-sm font-bold">SC</div>
-                    <div>
-                      <h3 className="font-semibold">{range.name}</h3>
-                      <div className="text-xs text-muted-foreground">
-                        {formatDate(new Date(range.startDate))} - {formatDate(new Date(range.endDate))}
-                      </div>
-                      <div className="text-xs text-muted-foreground">by {range.createdByName}</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">{range.votes.total} votes</span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className={cn(
-                        "h-8 w-8 p-0 transition-transform relative",
-                        showFabMenu && activeFabCardId === range.id ? "rotate-45" : "rotate-0"
-                      )}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (expandedCardId !== range.id) {
-                          setExpandedCardId(range.id);
-                        }
-                        // Toggle FAB menu for this specific card
-                        if (activeFabCardId === range.id && showFabMenu) {
-                          setShowFabMenu(false);
-                          setActiveFabCardId(null);
-                        } else {
-                          setShowFabMenu(true);
-                          setActiveFabCardId(range.id);
-                        }
-                      }}
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-                {/* Vote Bar */}
-                <div className="px-4">
-                  <div className="relative w-full h-3 mb-3 bg-muted rounded-full overflow-hidden flex">
-                    <div className="bg-green-500 h-full" style={{ width: `${(range.votes.available / range.votes.total) * 100}%` }} />
-                    <div className="bg-orange-400 h-full" style={{ width: `${(range.votes.canWork / range.votes.total) * 100}%` }} />
-                    <div className="bg-red-500 h-full" style={{ width: `${(unavailableVotes / range.votes.total) * 100}%` }} />
-                  </div>
-                </div>
-                {/* Expandable Content */}
-                <div
                   className={cn(
-                    "transition-all duration-300 overflow-hidden",
-                    isExpanded ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0 pointer-events-none"
+                    "flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200",
+                    selectedAvailabilityType === 'available'
+                      ? "bg-green-100 border border-green-300 shadow-sm"
+                      : "hover:bg-gray-50"
                   )}
-                  onClick={e => {
-                    e.stopPropagation();
-                    // Close FAB menu when clicking in the expanded area but not on the menu
-                    if (showFabMenu && activeFabCardId === range.id) {
-                      closeFabMenu();
-                    }
-                  }}
                 >
-                  <CardContent className="pt-0">
-                    <ProposalDiscussion
-                      discussions={mappedDiscussions}
-                      currentUserId={currentUserId}
-                      onAddComment={async (text) => { onDiscussionUpdate(range.id, text); }}
-                      onReply={async (parentId: string, text: string) => { 
-                        console.log('Reply handler called:', { parentId, text });
-                        onDiscussionUpdate(range.id, text, parentId); 
-                      }}
-                      placeholder="Add a comment..."
-                      className="mt-4"
-                    />
-                    {showFabMenu && isExpanded && activeFabCardId === range.id && (
-                      <div 
-                        className="absolute right-4 top-12 z-20 min-w-[180px] bg-white text-gray-900 rounded-xl shadow-lg py-2 px-2 flex flex-col gap-1 border border-gray-200"
-                        onClick={e => e.stopPropagation()}
-                      >
-                        {/* Caret/arrow */}
-                        <div className="absolute -top-2 right-4 w-4 h-4 overflow-hidden">
-                          <div className="w-4 h-4 bg-white border-gray-200 rotate-45 shadow-md border-t border-l border-gray-200"></div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          className="justify-start px-3 py-2 rounded-lg text-sm hover:bg-gray-100 focus:bg-gray-200"
-                          disabled={currentUserId !== range.createdBy}
-                          onClick={e => { e.stopPropagation(); onEditDateRange(range.id); }}
-                        >
-                          <Edit2 className="h-4 w-4 mr-2" /> Edit date range
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          className="justify-start px-3 py-2 rounded-lg text-sm hover:bg-gray-100 focus:bg-gray-200"
-                          disabled={!userHasVoted}
-                          onClick={e => { e.stopPropagation(); onChangeVote(range.id); }}
-                        >
-                          <CheckCircle className="h-4 w-4 mr-2" /> Change my vote
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          className="justify-start px-3 py-2 rounded-lg text-sm hover:bg-gray-100 focus:bg-gray-200 text-red-600"
-                          disabled={currentUserId !== range.createdBy}
-                          onClick={e => { e.stopPropagation(); onDeleteRange(range.id); }}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" /> Delete range
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          className="justify-start px-3 py-2 rounded-lg text-sm hover:bg-gray-100 focus:bg-gray-200"
-                          onClick={e => { e.stopPropagation(); onHideRange(range.id); }}
-                        >
-                          <EyeOff className="h-4 w-4 mr-2" /> Hide range
-                        </Button>
-                      </div>
-                    )}
-                  </CardContent>
+                  <div className="w-4 h-4 bg-green-500 rounded-full transition-all duration-200"></div>
+                  {selectedAvailabilityType === 'available' && (
+                    <span className="text-sm font-medium text-green-700">Available</span>
+                  )}
+                </button>
+                <button
+                  onClick={() => {
+                    console.log('Setting availability type to: maybe');
+                    setSelectedAvailabilityType('maybe' as AvailabilityStatus);
+                  }}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200",
+                    selectedAvailabilityType === 'maybe'
+                      ? "bg-orange-100 border border-orange-300 shadow-sm"
+                      : "hover:bg-gray-50"
+                  )}
+                >
+                  <div className="w-4 h-4 bg-orange-500 rounded-full transition-all duration-200"></div>
+                  {selectedAvailabilityType === 'maybe' && (
+                    <span className="text-sm font-medium text-orange-700">Can work</span>
+                  )}
+                </button>
+                <button
+                  onClick={() => {
+                    console.log('Setting availability type to: unavailable');
+                    setSelectedAvailabilityType('unavailable' as AvailabilityStatus);
+                  }}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200",
+                    selectedAvailabilityType === 'unavailable'
+                      ? "bg-red-100 border border-red-300 shadow-sm"
+                      : "hover:bg-gray-50"
+                  )}
+                >
+                  <div className="w-4 h-4 bg-red-500 rounded-full transition-all duration-200"></div>
+                  {selectedAvailabilityType === 'unavailable' && (
+                    <span className="text-sm font-medium text-red-700">Unavailable</span>
+                  )}
+                </button>
+              </div>
+            )}
+
+            {/* Group View Information */}
+            {availabilityView === 'group' && (
+              <div className="text-center mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <p className="text-sm text-blue-800">
+                  <strong>Group View:</strong> Shows team availability percentages.
+                  Colors indicate how many team members are available each day.
+                </p>
+                <div className="flex items-center justify-center gap-4 mt-2 text-xs">
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 bg-green-200 border border-green-300 rounded"></div>
+                    <span>75%+ available</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 bg-yellow-200 border border-yellow-300 rounded"></div>
+                    <span>50-74%</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 bg-orange-200 border border-orange-300 rounded"></div>
+                    <span>25-49%</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 bg-red-200 border border-red-300 rounded"></div>
+                    <span>&lt;25%</span>
+                  </div>
                 </div>
-              </Card>
-            );
-          })}
-        </TabsContent>
-      </Tabs>
+              </div>
+            )}
 
-      {/* Add Date Range Sheet */}
-      <Sheet open={isAddRangeModalOpen} onOpenChange={(open) => {
-        console.log('Sheet onOpenChange called with:', open);
-        if (!open) {
-          console.log('Sheet trying to close, calling handleCancelRange');
-          handleCancelRange();
-        }
-      }}>
-        <SheetContent side="bottom" className="w-full pt-4 pb-8 rounded-t-2xl max-h-[80vh] overflow-y-auto bg-white text-gray-900 dark:bg-white dark:text-gray-900 shadow-xl">
-          <SheetHeader className="relative">
-            <SheetTitle>
-              {pendingRangeData 
-                ? `Edit Date Range (${formatDate(pendingRangeData.start)} - ${formatDate(pendingRangeData.end)})`
-                : 'Add Date Range'
-              }
-            </SheetTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="absolute right-4 top-1"
-              onClick={handleCancelRange}
+            {/* Calendar Grid */}
+            <Card>
+              <CardContent className="p-4">
+                {/* Days header */}
+                <div className="grid grid-cols-7 gap-1 mb-2">
+                  {DAYS.map((day, i) => (
+                    <div key={`${day}-${i}`} className="text-center text-sm font-medium text-muted-foreground py-2">
+                      {day}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Calendar dates */}
+                <div className="grid grid-cols-7 gap-1" onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
+                  {calendarDates.map((calendarDate, index) => {
+                    const groupData = availabilityView === 'group' ? getGroupAvailabilityForDate(calendarDate.date) : null;
+
+                    return (
+                      <div
+                        key={index}
+                        className={getDateStyle(calendarDate)}
+                        onMouseDown={() => handleMouseDown(calendarDate)}
+                        onMouseEnter={() => handleMouseEnter(calendarDate)}
+                        onClick={() => handleDateClick(calendarDate)}
+                        title={
+                          availabilityView === 'group' && groupData
+                            ? `${groupData.available_count}/${groupData.total_members} available (${groupData.availability_percentage}%)`
+                            : undefined
+                        }
+                      >
+                        {availabilityView === 'group' && groupData && groupData.total_members > 0 ? (
+                          <div className="flex flex-col items-center">
+                            <span className="text-xs">{calendarDate.day}</span>
+                            <span className="text-xs font-bold">{Math.round(groupData.availability_percentage)}%</span>
+                          </div>
+                        ) : (
+                          calendarDate.day
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+
+          </TabsContent>
+
+          {/* Summary Tab */}
+          <TabsContent value="summary" className="space-y-4 relative">
+            {dateRanges.map(range => {
+              // Map the date range to EnhancedDateProposal format
+              const enhancedProposal: EnhancedDateProposal = {
+                id: range.id,
+                trip_id: tripId,
+                proposed_by: range.createdBy,
+                title: range.name,
+                start_date: range.startDate,
+                end_date: range.endDate,
+                notes: range.comment,
+                is_finalized: false, // This will be updated based on your actual data
+                created_at: new Date().toISOString(), // Update with actual created_at if available
+                updated_at: new Date().toISOString(), // Update with actual updated_at if available
+                proposed_by_profile: {
+                  username: range.createdByName,
+                  full_name: range.createdByName,
+                  avatar_url: ''
+                },
+                vote_stats: {
+                  upvotes: range.votes.available,
+                  downvotes: range.votes.total - range.votes.available - range.votes.canWork,
+                  neutral_votes: range.votes.canWork,
+                  total_votes: range.votes.total,
+                  net_score: range.votes.available - (range.votes.total - range.votes.available - range.votes.canWork)
+                },
+                user_vote: undefined, // This will be set based on user's vote
+                discussion_count: range.discussions.length,
+                linked_destinations: [] // Update with actual linked destinations if available
+              };
+
+              return (
+                <DateProposalCard
+                  key={range.id}
+                  proposal={enhancedProposal}
+                  currentUserId={currentUserId}
+                  canEdit={true} // Set based on user permissions
+                  canDelete={true} // Set based on user permissions
+                  canFinalize={true} // Set based on user permissions
+                  onVote={async (proposalId, voteType) => {
+                    // Implement vote handling
+                    console.log(`Vote ${voteType} for proposal ${proposalId}`);
+                    // Add your vote handling logic here
+                  }}
+                  onEdit={(proposal) => {
+                    // Implement edit handling
+                    console.log('Edit proposal:', proposal);
+                  }}
+                  onDelete={async (proposalId) => {
+                    // Implement delete handling
+                    console.log('Delete proposal:', proposalId);
+                    await onDeleteDateRange(proposalId);
+                  }}
+                  onFinalize={async (proposalId) => {
+                    // Implement finalize handling
+                    console.log('Finalize proposal:', proposalId);
+                  }}
+                  onDiscussion={(proposalId) => {
+                    // Handle discussion click
+                    setSelectedDiscussionRange(range);
+                    setShowDiscussionSheet(true);
+                  }}
+                  onEraseVote={async (proposalId) => {
+                    // Implement erase vote handling
+                    console.log('Erase vote for proposal:', proposalId);
+                  }}
+                />
+              );
+            })}
+            {/* Floating Action Button for adding a date proposal */}
+            <button
+              onClick={() => setIsAddRangeModalOpen(true)}
+              className="fixed bottom-24 right-6 z-50 bg-orange-500 hover:bg-orange-600 text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg transition-all duration-200"
+              aria-label="Add date proposal"
             >
-              <X className="h-4 w-4" />
-            </Button>
-          </SheetHeader>
+              <span className="text-3xl leading-none">+</span>
+            </button>
+          </TabsContent>
+          {/* End of Summary Tab */}
+        </Tabs>
+      </div>
+    );
+  };
 
+  // Helper to format date range for title
+  function formatDateRangeForTitle(start: Date | null, end: Date | null) {
+    if (!start || !end) return '';
+    const startStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const endStr = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return startStr === endStr ? startStr : `${startStr} - ${endStr}`;
+  }
+
+  return (
+    <>
+      {renderContent()}
+      {/* Range Modal Sheet */}
+      <Sheet open={isAddRangeModalOpen} onOpenChange={setIsAddRangeModalOpen}>
+        <SheetContent className="sm:max-w-[425px] bg-white/95" side="bottom">
           <div className="space-y-4 mt-4">
+            {/* Accessible DialogTitle for screen readers */}
+            <DialogTitle asChild>
+              <VisuallyHidden>Add Date Proposal</VisuallyHidden>
+            </DialogTitle>
+            {/* Accessible DialogDescription for screen readers */}
+            <DialogDescription asChild>
+              <VisuallyHidden>Select a title, start and end date, and add an optional comment to propose new dates for the trip.</VisuallyHidden>
+            </DialogDescription>
+            {/* Proposal Title Input */}
             <div>
-              <label className="text-sm font-medium">Range Name</label>
+              <Label htmlFor="proposal-title" className="pl-4">Proposal Title</Label>
               <Input
-                value={rangeName}
-                onChange={(e) => setRangeName(e.target.value)}
-                placeholder="e.g., 23.06.25-26.06.25"
-                className="mt-1"
+                id="proposal-title"
+                value={proposalTitle}
+                onChange={e => setProposalTitle(e.target.value)}
+                placeholder="e.g., Summer weekend getaway"
+                className="bg-background"
+                disabled={!startDate || !endDate}
               />
             </div>
-
+            {/* Start Date Picker */}
+            <div className="flex flex-col gap-3">
+              <Label htmlFor="start-date" className="pl-4">Start Date</Label>
+              <div className="relative flex gap-2">
+                <Input
+                  id="start-date"
+                  value={startDate ? startDate.toLocaleDateString("en-US", { day: "2-digit", month: "long", year: "numeric" }) : ""}
+                  placeholder="Select start date"
+                  className="bg-background pr-10"
+                  readOnly
+                  onClick={() => setCalendarSheet('start')}
+                />
+                <Button
+                  id="start-date-picker"
+                  variant="ghost"
+                  className="absolute top-1/2 right-2 size-6 -translate-y-1/2"
+                  type="button"
+                  onClick={() => setCalendarSheet('start')}
+                >
+                  <CalendarIcon className="size-3.5" />
+                  <span className="sr-only">Select start date</span>
+                </Button>
+              </div>
+            </div>
+            {/* End Date Picker */}
+            <div className="flex flex-col gap-3">
+              <Label htmlFor="end-date" className="pl-4">End Date</Label>
+              <div className="relative flex gap-2">
+                <Input
+                  id="end-date"
+                  value={endDate ? endDate.toLocaleDateString("en-US", { day: "2-digit", month: "long", year: "numeric" }) : ""}
+                  placeholder="Select end date"
+                  className="bg-background pr-10"
+                  readOnly
+                  onClick={() => setCalendarSheet('end')}
+                />
+                <Button
+                  id="end-date-picker"
+                  variant="ghost"
+                  className="absolute top-1/2 right-2 size-6 -translate-y-1/2"
+                  type="button"
+                  onClick={() => setCalendarSheet('end')}
+                >
+                  <CalendarIcon className="size-3.5" />
+                  <span className="sr-only">Select end date</span>
+                </Button>
+              </div>
+            </div>
+            {/* Calendar Sheet for Start/End Date */}
+            <Sheet open={calendarSheet !== null} onOpenChange={open => !open && setCalendarSheet(null)}>
+              <SheetContent className="sm:max-w-[425px] bg-white/95" side="bottom">
+                <div className="p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-lg font-semibold">
+                      {calendarSheet === 'start' ? 'Select Start Date' : 'Select End Date'}
+                    </span>
+                    <Button variant="ghost" size="icon" onClick={() => setCalendarSheet(null)}>
+                      <X className="w-5 h-5" />
+                    </Button>
+                  </div>
+                  <Calendar
+                    mode="single"
+                    selected={calendarSheet === 'start' ? startDate || undefined : endDate || undefined}
+                    captionLayout="dropdown"
+                    onSelect={(date: Date | undefined) => {
+                      if (calendarSheet === 'start') {
+                        setStartDate(date || null);
+                        if ((date || null) && endDate) {
+                          setProposalTitle(formatDateRangeForTitle(date || null, endDate));
+                        }
+                      } else if (calendarSheet === 'end') {
+                        setEndDate(date || null);
+                        if (startDate && (date || null)) {
+                          setProposalTitle(formatDateRangeForTitle(startDate, date || null));
+                        }
+                      }
+                      setCalendarSheet(null);
+                    }}
+                  />
+                </div>
+              </SheetContent>
+            </Sheet>
+            {/* Comment/Description Field */}
             <div>
-              <label className="text-sm font-medium">Comment (optional)</label>
+              <label className="text-sm font-medium pl-4">Comment (optional)</label>
               <Textarea
                 value={rangeComment}
                 onChange={(e) => setRangeComment(e.target.value)}
@@ -906,28 +903,29 @@ export function EnhancedAvailabilityView({
                 className="mt-1 min-h-[80px]"
               />
             </div>
-
             <div className="flex gap-3 pt-2">
-              <Button 
+              <Button
                 type="button"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  console.log('Save Range button clicked!');
-                  handleSaveRange();
+                  // Save using title, startDate and endDate
+                  if (!proposalTitle.trim() || !startDate || !endDate) return;
+                  handleSaveRange(startDate, endDate, proposalTitle);
                 }}
                 className="flex-1 bg-orange-500 hover:bg-orange-600 text-white"
+                disabled={!proposalTitle.trim() || !startDate || !endDate}
               >
                 Save Range
               </Button>
-              <Button 
+              <Button
                 type="button"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
                   handleCancelRange();
                 }}
-                variant="outline" 
+                variant="outline"
                 className="flex-1"
               >
                 Cancel
@@ -936,6 +934,6 @@ export function EnhancedAvailabilityView({
           </div>
         </SheetContent>
       </Sheet>
-    </div>
+    </>
   );
 }

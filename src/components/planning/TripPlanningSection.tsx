@@ -45,6 +45,7 @@ import {
   getDateProposals,
   getDestinationProposals,
   createDateProposal,
+  updateDateProposal,
   createDestinationProposal,
   castVote,
   getDiscussions,
@@ -96,6 +97,14 @@ export function TripPlanningSection({
   // UI State
   const [selectedDates, setSelectedDates] = useState<Map<string, AvailabilityStatus>>(new Map());
   const [isCreateDateDialogOpen, setIsCreateDateDialogOpen] = useState(false);
+  const [isEditDateDialogOpen, setIsEditDateDialogOpen] = useState(false);
+  const [editingProposal, setEditingProposal] = useState<{
+    id: string;
+    title: string;
+    start_date: string;
+    end_date: string;
+    notes?: string;
+  } | null>(null);
   const [isCreateDestinationDialogOpen, setIsCreateDestinationDialogOpen] = useState(false);
   const [selectedDiscussionProposal, setSelectedDiscussionProposal] = useState<{
     type: 'date' | 'destination';
@@ -198,31 +207,79 @@ export function TripPlanningSection({
     },
   });
 
-  // Create date proposal
+  // Create/Update date proposal
   const createDateProposalMutation = useMutation({
-    mutationFn: async (data: { title: string; start_date: string; end_date: string; notes?: string }) => {
-      const result = await createDateProposal(tripId, currentUserId, data);
-      return result.proposal; // may be null if error handled upstream
+    mutationFn: async (data: { 
+      id?: string;
+      title: string; 
+      start_date: string; 
+      end_date: string; 
+      notes?: string;
+    }) => {
+      if (data.id) {
+        // Update existing proposal
+        const result = await updateDateProposal(data.id, {
+          title: data.title,
+          start_date: data.start_date,
+          end_date: data.end_date,
+          notes: data.notes || undefined
+        });
+        return { proposal: result.proposal, isNew: false };
+      } else {
+        // Create new proposal
+        const result = await createDateProposal(tripId, currentUserId, {
+          title: data.title,
+          start_date: data.start_date,
+          end_date: data.end_date,
+          notes: data.notes || undefined
+        });
+        return { proposal: result.proposal, isNew: true };
+      }
     },
-    onSuccess: (created) => {
-      // Auto-vote is now handled by database trigger
-      toast.success('Date proposal created successfully!');
+    onSuccess: (result) => {
+      if (result?.isNew) {
+        toast.success('Date proposal created successfully!');
+      } else {
+        toast.success('Date proposal updated successfully!');
+      }
       queryClient.invalidateQueries({ queryKey: ['dateProposals'] });
       setIsCreateDateDialogOpen(false);
+      setIsEditDateDialogOpen(false);
+      setEditingProposal(null);
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Failed to create date proposal');
+      toast.error(error.message || 'Failed to save date proposal');
     },
   });
 
+  // Handle edit proposal
+  const handleEditProposal = (proposal: any) => {
+    setEditingProposal({
+      id: proposal.id,
+      title: proposal.title,
+      start_date: proposal.start_date,
+      end_date: proposal.end_date,
+      notes: proposal.notes || ''
+    });
+    setIsEditDateDialogOpen(true);
+  };
+
   // Create destination proposal
   const createDestinationProposalMutation = useMutation({
-    mutationFn: (data: {
+    mutationFn: async (data: {
       destination_name: string;
       destination_description?: string;
       destination_notes?: string;
       date_proposal_id?: string;
-    }) => createDestinationProposal(tripId, currentUserId, data),
+    }) => {
+      const result = await createDestinationProposal(tripId, currentUserId, {
+        destination_name: data.destination_name,
+        destination_description: data.destination_description || undefined,
+        destination_notes: data.destination_notes || undefined,
+        date_proposal_id: data.date_proposal_id || undefined
+      });
+      return result;
+    },
     onSuccess: () => {
       toast.success('Destination proposal created successfully!');
       queryClient.invalidateQueries({ queryKey: ['destinationProposals'] });
@@ -478,6 +535,7 @@ export function TripPlanningSection({
                 <TabsList className="grid w-full grid-cols-4">
                   <TabsTrigger value="availability">
                     <Users className="h-4 w-4 mr-2" />
+
                     Availability
                   </TabsTrigger>
                   <TabsTrigger value="dates">
@@ -497,251 +555,25 @@ export function TripPlanningSection({
                 {/* Availability Tab */}
                 <TabsContent value="availability" className="space-y-6">
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Personal Availability Calendar */}
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <h3 className="text-lg font-semibold">My Availability</h3>
-                        <Button
-                          onClick={handleSaveAvailability}
-                          disabled={saveAvailabilityMutation.isPending || selectedDates.size === 0}
-                        >
-                          {saveAvailabilityMutation.isPending ? 'Saving...' : 'Save Changes'}
+                        <Button onClick={handleSaveAvailability}>
+                          Save Availability
                         </Button>
                       </div>
                       <AvailabilityCalendar
                         selectedDates={selectedDates}
-                        onDatesChange={setSelectedDates}
-                        enableRangeSelection={true}
+                        onDatesChange={handleDatesChange}
                       />
                     </div>
-
-                    {/* Team Availability Heatmap */}
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold">Team Availability</h3>
-                      {heatmapData?.heatmap ? (
-                        <AvailabilityHeatmap
-                          data={heatmapData.heatmap}
-                          title=""
-                          showDetails={true}
-                        />
-                      ) : (
-                        <div className="text-center py-8 text-gray-500">
-                          Loading team availability...
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </TabsContent>
-
-                {/* Date Proposals Tab */}
-                <TabsContent value="dates" className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">Date Proposals</h3>
-                    {canCreateProposals && (
-                      <Dialog open={isCreateDateDialogOpen} onOpenChange={setIsCreateDateDialogOpen}>
-                        <DialogTrigger asChild>
-                          <Button>
-                            <Plus className="h-4 w-4 mr-2" />
-                            Propose Dates
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-2xl">
-                          <DialogHeader>
-                            <DialogTitle>Create Date Proposal</DialogTitle>
-                          </DialogHeader>
-                          <CreateDateProposalForm
-                            tripId={tripId}
-                            onSubmit={createDateProposalMutation.mutate}
-                            isSubmitting={createDateProposalMutation.isPending}
-                          />
-                        </DialogContent>
-                      </Dialog>
-                    )}
-                  </div>
-
-                  <div className="space-y-4">
-                    {isLoadingDateProposals ? (
-                      <div className="text-center py-8">Loading date proposals...</div>
-                    ) : dateProposalsData?.proposals && dateProposalsData.proposals.length > 0 ? (
-                      dateProposalsData.proposals.map((proposal) => (
-                        <DateProposalCard
-                          key={proposal.id}
-                          proposal={proposal}
-                          currentUserId={currentUserId}
-                          canEdit={true}
-                          canDelete={true}
-                          canFinalize={canFinalize}
-                          availabilityData={heatmapData?.heatmap || []}
-                          onVote={(proposalId, voteType) => handleVote(proposalId, 'date', voteType)}
-                          onDiscussion={(proposalId) => handleDiscussion('date', proposalId, proposal.title)}
-                          onEraseVote={async (proposalId) => {
-                            await deleteVoteForDateProposal(currentUserId, proposalId);
-                            queryClient.invalidateQueries({ queryKey: ['dateProposals'] });
-                          }}
-                        />
-                      ))
-                    ) : (
-                      <div className="text-center py-8 text-gray-500">
-                        No date proposals yet. Be the first to suggest some dates!
-                      </div>
-                    )}
-                  </div>
-                </TabsContent>
-
-                {/* Destinations Tab */}
-                <TabsContent value="destinations" className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">Destination Proposals</h3>
-                    {canCreateProposals && (
-                      <Dialog open={isCreateDestinationDialogOpen} onOpenChange={setIsCreateDestinationDialogOpen}>
-                        <DialogTrigger asChild>
-                          <Button>
-                            <Plus className="h-4 w-4 mr-2" />
-                            Propose Destination
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-2xl">
-                          <DialogHeader>
-                            <DialogTitle>Create Destination Proposal</DialogTitle>
-                          </DialogHeader>
-                          <CreateDestinationProposalForm
-                            tripId={tripId}
-                            onSubmit={createDestinationProposalMutation.mutate}
-                            isSubmitting={createDestinationProposalMutation.isPending}
-                            availableDateProposals={dateProposalsData?.proposals || []}
-                          />
-                        </DialogContent>
-                      </Dialog>
-                    )}
-                  </div>
-
-                  <div className="space-y-4">
-                    {isLoadingDestinationProposals ? (
-                      <div className="text-center py-8">Loading destination proposals...</div>
-                    ) : destinationProposalsData?.proposals && destinationProposalsData.proposals.length > 0 ? (
-                      destinationProposalsData.proposals.map((proposal) => (
-                        <DestinationProposalCard
-                          key={proposal.id}
-                          proposal={proposal}
-                          currentUserId={currentUserId}
-                          canEdit={true}
-                          canDelete={true}
-                          canFinalize={canFinalize}
-                          onVote={(proposalId, voteType) => handleVote(proposalId, 'destination', voteType)}
-                          onDiscussion={(proposalId) => handleDiscussion('destination', proposalId, proposal.destination_name)}
-                        />
-                      ))
-                    ) : (
-                      <div className="text-center py-8 text-gray-500">
-                        No destination proposals yet. Be the first to suggest a destination!
-                      </div>
-                    )}
-                  </div>
-                </TabsContent>
-
-                {/* Overview Tab */}
-                <TabsContent value="overview" className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <Card>
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-5 w-5 text-blue-600" />
-                          <div>
-                            <div className="font-semibold">{dateProposalsData?.proposals?.length || 0}</div>
-                            <div className="text-sm text-gray-600">Date Proposals</div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-2">
-                          <MapPin className="h-5 w-5 text-green-600" />
-                          <div>
-                            <div className="font-semibold">{destinationProposalsData?.proposals?.length || 0}</div>
-                            <div className="text-sm text-gray-600">Destination Proposals</div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-2">
-                          <Users className="h-5 w-5 text-purple-600" />
-                          <div>
-                            <div className="font-semibold">
-                              {heatmapData?.heatmap?.[0]?.total_members || 0}
-                            </div>
-                            <div className="text-sm text-gray-600">Team Members</div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  {/* Quick access to finalized items */}
-                  <div className="space-y-4">
-                    <h4 className="font-semibold">Finalized Decisions</h4>
-
-                    {/* Finalized dates */}
-                    {dateProposalsData?.proposals?.filter(p => p.is_finalized).map(proposal => (
-                      <div key={proposal.id} className="flex items-center gap-2 p-3 bg-green-50 rounded-lg border border-green-200 dark:bg-green-950 dark:border-green-800">
-                        <Calendar className="h-4 w-4 text-green-600" />
-                        <span className="font-medium">Dates: {proposal.title}</span>
-                        <Badge className="bg-green-100 text-green-800">Finalized</Badge>
-                      </div>
-                    ))}
-
-                    {/* Finalized destinations */}
-                    {destinationProposalsData?.proposals?.filter(p => p.is_finalized).map(proposal => (
-                      <div key={proposal.id} className="flex items-center gap-2 p-3 bg-green-50 rounded-lg border border-green-200 dark:bg-green-950 dark:border-green-800">
-                        <MapPin className="h-4 w-4 text-green-600" />
-                        <span className="font-medium">Destination: {proposal.destination_name}</span>
-                        <Badge className="bg-green-100 text-green-800">Finalized</Badge>
-                      </div>
-                    ))}
-
-                    {(!dateProposalsData?.proposals?.some(p => p.is_finalized) &&
-                      !destinationProposalsData?.proposals?.some(p => p.is_finalized)) && (
-                        <div className="text-center py-4 text-gray-500">
-                          No finalized decisions yet. Keep discussing and voting!
-                        </div>
-                      )}
                   </div>
                 </TabsContent>
               </Tabs>
             </CardContent>
           </Card>
-
-          {/* Discussion Dialog */}
-          {selectedDiscussionProposal && (
-            <Dialog
-              open={!!selectedDiscussionProposal}
-              onOpenChange={() => setSelectedDiscussionProposal(null)}
-            >
-              <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2">
-                    <MessageSquare className="h-5 w-5" />
-                    Discussion: {selectedDiscussionProposal.title}
-                  </DialogTitle>
-                </DialogHeader>
-
-                <ProposalDiscussion
-                  discussions={discussionData?.discussions || []}
-                  currentUserId={currentUserId}
-                  onAddComment={handleCreateComment}
-                  placeholder={`Share your thoughts about this ${selectedDiscussionProposal.type} proposal...`}
-                  className="border-0 shadow-none"
-                />
-              </DialogContent>
-            </Dialog>
-          )}
         </div>
       )}
-
       {/* Switch View Button for Enhanced View */}
       {useEnhancedView && (
         <div className="mt-4 text-center">
