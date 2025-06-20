@@ -861,16 +861,11 @@ export function EnhancedAvailabilityView({
             </div>
             {/* Calendar Sheet for Start/End Date */}
             <Sheet open={calendarSheet !== null} onOpenChange={open => !open && setCalendarSheet(null)}>
-              <SheetContent className="sm:max-w-[425px] bg-white/95" side="bottom">
-                <div className="p-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-lg font-semibold">
-                      {calendarSheet === 'start' ? 'Select Start Date' : 'Select End Date'}
-                    </span>
-                    <Button variant="ghost" size="icon" onClick={() => setCalendarSheet(null)}>
-                      <X className="w-5 h-5" />
-                    </Button>
-                  </div>
+              <SheetContent className="sm:max-w-[425px] bg-white/95 flex flex-col items-center justify-start" side="bottom">
+                <div className="w-full max-w-md px-4 pt-6 pb-4 flex flex-col items-center">
+                  <span className="text-lg font-semibold mb-4 text-center w-full block">
+                    {calendarSheet === 'start' ? 'Select Start Date' : 'Select End Date'}
+                  </span>
                   <Calendar
                     mode="single"
                     selected={calendarSheet === 'start' ? startDate || undefined : endDate || undefined}

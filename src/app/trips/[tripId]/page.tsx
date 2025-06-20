@@ -110,16 +110,16 @@ function TripDetailPageContent() {
     if (tripData?.trip && activePhase === "plan") {
       const getTripStatus = (trip: { start_date?: string; end_date?: string }) => {
         if (!trip?.start_date || !trip?.end_date) return "planning";
-        
+
         const now = new Date();
         const startDate = new Date(trip.start_date);
         const endDate = new Date(trip.end_date);
-        
+
         if (now >= startDate && now <= endDate) return "active";
         if (now > endDate) return "complete";
         return "planning";
       };
-      
+
       const tripStatus = getTripStatus(tripData.trip);
       const defaultPhase = tripStatus === "active" ? "go" : tripStatus === "complete" ? "reminisce" : "plan";
       setActivePhase(defaultPhase);
@@ -133,7 +133,7 @@ function TripDetailPageContent() {
   if (tripError || !tripData?.trip) {
     return <div className="container mx-auto p-4 text-red-500">Error loading trip: {tripError?.message || tripData?.error?.message || "Trip not found or access denied."}</div>;
   }
-  
+
   if (membersError || !membersData) {
     return <div className="container mx-auto p-4 text-red-500">Error loading members: {membersError?.message || membersData?.error?.message || "Could not load members."}</div>;
   }
@@ -148,16 +148,16 @@ function TripDetailPageContent() {
   // Calculate trip status for display
   const getTripStatus = (trip: { start_date?: string; end_date?: string }) => {
     if (!trip?.start_date || !trip?.end_date) return "planning";
-    
+
     const now = new Date();
     const startDate = new Date(trip.start_date);
     const endDate = new Date(trip.end_date);
-    
+
     if (now >= startDate && now <= endDate) return "active";
     if (now > endDate) return "complete";
     return "planning";
   };
-  
+
   const tripStatus = getTripStatus(trip);
 
 
@@ -218,7 +218,7 @@ function TripDetailPageContent() {
           );
         case 'recipes':
           return (
-            <RecipesSection 
+            <RecipesSection
               tripId={trip.id}
               tripMembers={members.map(member => ({
                 user_id: member.user_id,
@@ -231,7 +231,7 @@ function TripDetailPageContent() {
         case 'shopping':
           return (
             <>
-              <ShoppingListsSection 
+              <ShoppingListsSection
                 tripId={trip.id}
                 tripMembers={members.map(member => ({
                   user_id: member.user_id,
@@ -242,7 +242,7 @@ function TripDetailPageContent() {
                 }))}
                 currentUserRole={currentUserMemberInfo?.role}
               />
-              <AggregatedShoppingView 
+              <AggregatedShoppingView
                 tripId={trip.id}
                 tripMembers={members.map(member => ({
                   user_id: member.user_id,
@@ -254,7 +254,7 @@ function TripDetailPageContent() {
           );
         case 'expenses':
           return (
-            <ExpensesSection 
+            <ExpensesSection
               tripId={trip.id}
               tripMembers={members.map(member => ({
                 user_id: member.user_id,
@@ -361,16 +361,16 @@ function TripDetailPageContent() {
         />
       </div>
 
-      {/* Member Management Modal */}
+      {/* Member Management Modal with White Background */}
       <Dialog open={showMemberManagement} onOpenChange={setShowMemberManagement}>
-        <DialogContent className="sm:max-w-[500px] max-h-[80vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[500px] max-h-[80vh] overflow-y-auto bg-white">
           <DialogHeader>
             <DialogTitle>Trip Members</DialogTitle>
             <DialogDescription>
               Manage who's part of this trip adventure.
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             {/* Invite Section */}
             {canInvite && (
@@ -393,13 +393,13 @@ function TripDetailPageContent() {
                     </DialogContent>
                   </Dialog>
 
-                  <Button 
-                    onClick={handleGenerateInviteLink} 
-                    variant="outline" 
+                  <Button
+                    onClick={handleGenerateInviteLink}
+                    variant="outline"
                     className="flex-1"
                     disabled={isGeneratingLink}
                   >
-                    <LinkIcon className="mr-2 h-4 w-4" /> 
+                    <LinkIcon className="mr-2 h-4 w-4" />
                     {isGeneratingLink ? "Creating..." : "Share Link"}
                   </Button>
                 </div>
@@ -447,7 +447,7 @@ function TripDetailPageContent() {
                 <p className="text-gray-500 text-sm text-center py-4">No members yet. Invite someone to join!</p>
               )}
             </div>
-            
+
             {/* Trip Management */}
             {canDelete && (
               <div className="pt-4 border-t">
@@ -469,8 +469,8 @@ function TripDetailPageContent() {
                       <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
                         Cancel
                       </Button>
-                      <Button 
-                        variant="destructive" 
+                      <Button
+                        variant="destructive"
                         onClick={handleDeleteTrip}
                         disabled={deleteMutation.isPending}
                       >
