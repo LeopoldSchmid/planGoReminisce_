@@ -336,8 +336,8 @@ function TripDetailPageContent() {
       )}
 
       {/* Main Content */}
-      <div className="pb-24">
-        {activeSection && (
+      <div className="pb-16">
+        {activeSection && activeSection !== 'planning' && (
           <div className="bg-white border-b border-gray-100 px-4 py-2 sticky top-0 z-40">
             <Button
               variant="ghost"

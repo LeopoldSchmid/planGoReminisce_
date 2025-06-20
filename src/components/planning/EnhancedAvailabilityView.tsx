@@ -72,21 +72,22 @@ const DAYS = ['S', 'M', 'T', 'W', 'Th', 'F', 'S'];
 export function EnhancedAvailabilityView({
   tripName,
   selectedDates,
-  onDatesChange: _onDatesChange,
+  onDatesChange,
   dateRanges,
   onCreateDateRange,
   onDiscussionUpdate,
-  currentUserId: _currentUserId,
-  currentUserName: _currentUserName,
+  currentUserId,
+  currentUserName,
   className
 }: EnhancedAvailabilityViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [activeTab, setActiveTab] = useState<'availability' | 'summary'>('availability');
   
-  // Date range selection state
+  // Availability painting state
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartDate, setDragStartDate] = useState<string | null>(null);
   const [selectedRange, setSelectedRange] = useState<{ start: Date; end: Date } | null>(null);
+  const [selectedAvailabilityType, setSelectedAvailabilityType] = useState<AvailabilityStatus>('available');
   
   // Modal states
   const [isAddRangeModalOpen, setIsAddRangeModalOpen] = useState(false);
@@ -185,24 +186,53 @@ export function EnhancedAvailabilityView({
   };
 
   const handleDateClick = (calendarDate: CalendarDate) => {
-    const clickedDate = new Date(calendarDate.date);
+    if (!calendarDate.isCurrentMonth) return; // Only allow clicking current month dates
     
-    if (!isDragging) {
-      // Start new selection
-      setSelectedRange({ start: clickedDate, end: clickedDate });
-      setDragStartDate(calendarDate.date);
-      setIsDragging(true);
-    }
+    const dateStr = calendarDate.date;
+    const newDates = new Map(selectedDates);
+    
+    // Set the availability for this date to the selected type
+    newDates.set(dateStr, selectedAvailabilityType);
+    onDatesChange(newDates);
   };
 
   const handleMouseEnter = (calendarDate: CalendarDate) => {
-    if (!isDragging || !dragStartDate) return;
+    if (!isDragging || !dragStartDate || !calendarDate.isCurrentMonth) return;
 
     const startDate = new Date(dragStartDate);
     const endDate = new Date(calendarDate.date);
     
     const [from, to] = startDate <= endDate ? [startDate, endDate] : [endDate, startDate];
     setSelectedRange({ start: from, end: to });
+  };
+
+  const handleMouseDown = (calendarDate: CalendarDate) => {
+    if (!calendarDate.isCurrentMonth) return;
+    
+    setIsDragging(true);
+    setDragStartDate(calendarDate.date);
+    handleDateClick(calendarDate);
+  };
+
+  const handleMouseUp = () => {
+    if (isDragging && selectedRange) {
+      // Apply selected availability type to all dates in range
+      const newDates = new Map(selectedDates);
+      let currentDate = new Date(selectedRange.start);
+      const endDate = new Date(selectedRange.end);
+      
+      while (currentDate <= endDate) {
+        const dateStr = currentDate.toISOString().split('T')[0];
+        newDates.set(dateStr, selectedAvailabilityType);
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+      
+      onDatesChange(newDates);
+    }
+    
+    setIsDragging(false);
+    setDragStartDate(null);
+    setSelectedRange(null);
   };
 
 
@@ -339,24 +369,50 @@ export function EnhancedAvailabilityView({
             </Button>
           </div>
 
-          {/* Minimal Availability Legend */}
-          <div className="flex items-center justify-center gap-4 mb-4">
-            <div className="group flex items-center gap-2 cursor-pointer">
-              <div className="w-4 h-4 bg-green-500 rounded-full transition-all duration-200 group-hover:scale-110"></div>
-              <span className="text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-200 absolute mt-8 bg-black text-white px-2 py-1 rounded text-xs whitespace-nowrap">Available</span>
-            </div>
-            <div className="group flex items-center gap-2 cursor-pointer">
-              <div className="w-4 h-4 bg-orange-500 rounded-full transition-all duration-200 group-hover:scale-110"></div>
-              <span className="text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-200 absolute mt-8 bg-black text-white px-2 py-1 rounded text-xs whitespace-nowrap">Can work</span>
-            </div>
-            <div className="group flex items-center gap-2 cursor-pointer">
-              <div className="w-4 h-4 bg-red-500 rounded-full transition-all duration-200 group-hover:scale-110"></div>
-              <span className="text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-200 absolute mt-8 bg-black text-white px-2 py-1 rounded text-xs whitespace-nowrap">Unavailable</span>
-            </div>
-            <div className="group flex items-center gap-2 cursor-pointer">
-              <div className="w-4 h-4 bg-gray-300 rounded-full transition-all duration-200 group-hover:scale-110"></div>
-              <span className="text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-200 absolute mt-8 bg-black text-white px-2 py-1 rounded text-xs whitespace-nowrap">Past</span>
-            </div>
+          {/* Availability Type Selector */}
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <button
+              onClick={() => setSelectedAvailabilityType('available')}
+              className={cn(
+                "flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200",
+                selectedAvailabilityType === 'available' 
+                  ? "bg-green-100 border border-green-300 shadow-sm" 
+                  : "hover:bg-gray-50"
+              )}
+            >
+              <div className="w-4 h-4 bg-green-500 rounded-full transition-all duration-200"></div>
+              {selectedAvailabilityType === 'available' && (
+                <span className="text-sm font-medium text-green-700">Available</span>
+              )}
+            </button>
+            <button
+              onClick={() => setSelectedAvailabilityType('maybe')}
+              className={cn(
+                "flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200",
+                selectedAvailabilityType === 'maybe' 
+                  ? "bg-orange-100 border border-orange-300 shadow-sm" 
+                  : "hover:bg-gray-50"
+              )}
+            >
+              <div className="w-4 h-4 bg-orange-500 rounded-full transition-all duration-200"></div>
+              {selectedAvailabilityType === 'maybe' && (
+                <span className="text-sm font-medium text-orange-700">Can work</span>
+              )}
+            </button>
+            <button
+              onClick={() => setSelectedAvailabilityType('unavailable')}
+              className={cn(
+                "flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200",
+                selectedAvailabilityType === 'unavailable' 
+                  ? "bg-red-100 border border-red-300 shadow-sm" 
+                  : "hover:bg-gray-50"
+              )}
+            >
+              <div className="w-4 h-4 bg-red-500 rounded-full transition-all duration-200"></div>
+              {selectedAvailabilityType === 'unavailable' && (
+                <span className="text-sm font-medium text-red-700">Unavailable</span>
+              )}
+            </button>
           </div>
 
           {/* Calendar Grid */}
@@ -372,13 +428,14 @@ export function EnhancedAvailabilityView({
               </div>
 
               {/* Calendar dates */}
-              <div className="grid grid-cols-7 gap-1">
+              <div className="grid grid-cols-7 gap-1" onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
                 {calendarDates.map((calendarDate, index) => (
                   <div
                     key={index}
                     className={getDateStyle(calendarDate)}
-                    onClick={() => handleDateClick(calendarDate)}
+                    onMouseDown={() => handleMouseDown(calendarDate)}
                     onMouseEnter={() => handleMouseEnter(calendarDate)}
+                    onClick={() => handleDateClick(calendarDate)}
                   >
                     {calendarDate.day}
                   </div>
@@ -387,15 +444,6 @@ export function EnhancedAvailabilityView({
             </CardContent>
           </Card>
 
-          {/* Action Buttons */}
-          <div className="flex gap-3">
-            <Button className="flex-1 bg-green-600 hover:bg-green-700 transform transition-all duration-200 hover:scale-105 active:scale-95 hover:shadow-lg">
-              Mark as Available
-            </Button>
-            <Button variant="outline" className="flex-1 transform transition-all duration-200 hover:scale-105 active:scale-95 hover:shadow-md">
-              Remove
-            </Button>
-          </div>
         </TabsContent>
 
         {/* Summary Tab */}
