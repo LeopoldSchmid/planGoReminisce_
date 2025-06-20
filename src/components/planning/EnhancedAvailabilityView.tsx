@@ -67,7 +67,7 @@ const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
-const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const DAYS = ['S', 'M', 'T', 'W', 'Th', 'F', 'S'];
 
 export function EnhancedAvailabilityView({
   tripName,
@@ -339,23 +339,23 @@ export function EnhancedAvailabilityView({
             </Button>
           </div>
 
-          {/* Availability Legend */}
-          <div className="flex items-center justify-center gap-6 mb-4">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-              <span className="text-sm">Available</span>
+          {/* Minimal Availability Legend */}
+          <div className="flex items-center justify-center gap-4 mb-4">
+            <div className="group flex items-center gap-2 cursor-pointer">
+              <div className="w-4 h-4 bg-green-500 rounded-full transition-all duration-200 group-hover:scale-110"></div>
+              <span className="text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-200 absolute mt-8 bg-black text-white px-2 py-1 rounded text-xs whitespace-nowrap">Available</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-              <span className="text-sm">1 can work</span>
+            <div className="group flex items-center gap-2 cursor-pointer">
+              <div className="w-4 h-4 bg-orange-500 rounded-full transition-all duration-200 group-hover:scale-110"></div>
+              <span className="text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-200 absolute mt-8 bg-black text-white px-2 py-1 rounded text-xs whitespace-nowrap">Can work</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-              <span className="text-sm">Unavailable</span>
+            <div className="group flex items-center gap-2 cursor-pointer">
+              <div className="w-4 h-4 bg-red-500 rounded-full transition-all duration-200 group-hover:scale-110"></div>
+              <span className="text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-200 absolute mt-8 bg-black text-white px-2 py-1 rounded text-xs whitespace-nowrap">Unavailable</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-gray-300 rounded-full"></div>
-              <span className="text-sm">Past</span>
+            <div className="group flex items-center gap-2 cursor-pointer">
+              <div className="w-4 h-4 bg-gray-300 rounded-full transition-all duration-200 group-hover:scale-110"></div>
+              <span className="text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-200 absolute mt-8 bg-black text-white px-2 py-1 rounded text-xs whitespace-nowrap">Past</span>
             </div>
           </div>
 

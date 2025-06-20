@@ -116,3 +116,23 @@ if (!user && !isLoading) {
 - Extensive logging for debugging auth state changes
 - Profile fetching happens asynchronously after auth state loads
 - `isLoading` state prevents premature redirects during initialization
+
+## Mobile-First UI/UX Design Guidelines
+
+**Minimal Design Principles:**
+- Show labels only when selected/active - use icons by default
+- Remove unnecessary descriptive text and clutter
+- Single header per screen - avoid header stacking
+- Progressive disclosure - complexity revealed only when needed
+- Touch-first interactions with proper feedback
+
+**Calendar Component Rules:**
+- Ensure unique keys for all calendar cells (avoid duplicate "T" for Tuesday/Thursday)
+- Availability legend shows labels only on selection/hover
+- Minimal color coding with clear visual hierarchy
+
+**Navigation Guidelines:**
+- Bottom navigation shows icons + phase names only
+- Remove descriptions like "Organize your adventure" for cleaner look
+- Focus on essential information only
+- Use breathing room and proper spacing

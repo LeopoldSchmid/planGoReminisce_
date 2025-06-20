@@ -320,44 +320,25 @@ function TripDetailPageContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 relative">
-      {/* Header with trip info and settings */}
-      <div className="bg-white border-b border-gray-100 sticky top-0 z-40">
-        <div className="px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-orange-400 to-pink-400 rounded-xl flex items-center justify-center">
-                <span className="text-white font-bold text-lg">
-                  {trip.name.charAt(0).toUpperCase()}
-                </span>
-              </div>
-              <div>
-                <h1 className="font-semibold text-gray-900 text-lg truncate max-w-[200px]">
-                  {trip.name}
-                </h1>
-                <p className="text-xs text-gray-500">
-                  {members.length} member{members.length !== 1 ? 's' : ''}
-                </p>
-              </div>
-            </div>
-            
-            {/* Settings/Member Management */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowMemberManagement(true)}
-              className="p-2"
-            >
-              <Settings className="w-5 h-5 text-gray-600" />
-            </Button>
-          </div>
+    <div className="relative">
+      {/* Floating Settings Button - only show when not in section */}
+      {!activeSection && (
+        <div className="fixed top-20 right-4 z-50">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowMemberManagement(true)}
+            className="p-2 bg-white shadow-lg border border-gray-200 hover:bg-gray-50"
+          >
+            <Settings className="w-4 h-4 text-gray-600" />
+          </Button>
         </div>
-      </div>
+      )}
 
       {/* Main Content */}
-      <div className="pb-32">
+      <div className="pb-24">
         {activeSection && (
-          <div className="bg-white border-b border-gray-100 px-4 py-2">
+          <div className="bg-white border-b border-gray-100 px-4 py-2 sticky top-0 z-40">
             <Button
               variant="ghost"
               size="sm"

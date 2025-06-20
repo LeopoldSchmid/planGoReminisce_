@@ -79,11 +79,11 @@ export function TripPhaseNavigation({
   return (
     <div className={cn(
       "bg-white border-t border-gray-100 shadow-lg rounded-t-2xl",
-      "px-2 py-3 space-y-2",
+      "px-2 py-2",
       className
     )}>
       {/* Progress Indicator */}
-      <div className="flex items-center justify-center space-x-2 mb-4">
+      <div className="flex items-center justify-center space-x-2 mb-2">
         <div className="flex items-center space-x-2">
           {phases.map((phase, index) => (
             <React.Fragment key={phase.id}>
@@ -119,10 +119,10 @@ export function TripPhaseNavigation({
               disabled={!isEnabled}
               className={cn(
                 "relative flex flex-col items-center justify-center",
-                "p-4 rounded-xl transition-all duration-300 ease-spring",
+                "p-3 rounded-xl transition-all duration-300 ease-spring",
                 "transform-gpu touch-manipulation",
                 "active:scale-95 transition-transform",
-                "min-h-[80px] group",
+                "min-h-[64px] group",
                 isActive && [
                   "shadow-lg shadow-orange-100",
                   "bg-gradient-to-br from-orange-50 to-yellow-50",
@@ -145,7 +145,7 @@ export function TripPhaseNavigation({
 
               {/* Icon */}
               <div className={cn(
-                "flex items-center justify-center w-8 h-8 rounded-lg mb-2",
+                "flex items-center justify-center w-7 h-7 rounded-lg mb-1",
                 "transition-all duration-300 ease-spring",
                 isActive && [
                   phase.bgColor,
@@ -155,7 +155,7 @@ export function TripPhaseNavigation({
                 isActive && "animate-in zoom-in-50 duration-200"
               )}>
                 <Icon className={cn(
-                  "w-5 h-5 transition-all duration-300",
+                  "w-4 h-4 transition-all duration-300",
                   isActive ? phase.color : 'text-gray-500',
                   isActive && "drop-shadow-sm"
                 )} />
@@ -169,16 +169,6 @@ export function TripPhaseNavigation({
                 {phase.label}
               </span>
 
-              {/* Description */}
-              <span className={cn(
-                "text-xs text-center leading-tight mt-1",
-                "transition-all duration-300 opacity-0 group-hover:opacity-100",
-                isActive ? 'text-gray-700 opacity-100' : 'text-gray-500',
-                "max-w-[80px]"
-              )}>
-                {phase.description}
-              </span>
-
               {/* Active indicator */}
               {isActive && (
                 <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2">
@@ -188,18 +178,6 @@ export function TripPhaseNavigation({
             </button>
           );
         })}
-      </div>
-
-      {/* Current Phase Title */}
-      <div className="text-center pt-2">
-        <h3 className={cn(
-          "text-lg font-semibold transition-all duration-500",
-          activePhase === 'plan' && 'text-blue-600',
-          activePhase === 'go' && 'text-orange-600',
-          activePhase === 'reminisce' && 'text-green-600'
-        )}>
-          {phases.find(p => p.id === activePhase)?.description}
-        </h3>
       </div>
     </div>
   );
