@@ -11,11 +11,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { 
+import {
   Calendar,
-  MessageCircle, 
-  ThumbsUp, 
-  ThumbsDown, 
+  MessageCircle,
+  ThumbsUp,
+  ThumbsDown,
   Minus,
   MoreHorizontal,
   Edit2,
@@ -25,8 +25,6 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EnhancedDateProposal, VoteType } from '@/services/planningService';
-import { AvailabilityHeatmap } from './AvailabilityHeatmap';
-import { AvailabilityHeatmapData } from '@/services/availabilityService';
 
 interface DateProposalCardProps {
   proposal: EnhancedDateProposal;
@@ -34,12 +32,12 @@ interface DateProposalCardProps {
   canEdit?: boolean;
   canDelete?: boolean;
   canFinalize?: boolean;
-  availabilityData?: AvailabilityHeatmapData[];
   onVote?: (proposalId: string, voteType: VoteType) => Promise<void>;
   onEdit?: (proposal: EnhancedDateProposal) => void;
   onDelete?: (proposalId: string) => Promise<void>;
   onFinalize?: (proposalId: string) => Promise<void>;
   onDiscussion?: (proposalId: string) => void;
+  onEraseVote?: (proposalId: string) => void;
   className?: string;
 }
 
@@ -49,39 +47,38 @@ export function DateProposalCard({
   canEdit = false,
   canDelete = false,
   canFinalize = false,
-  availabilityData = [],
   onVote,
   onEdit,
   onDelete,
   onFinalize,
   onDiscussion,
+  onEraseVote,
   className
 }: DateProposalCardProps) {
   const [isVoting, setIsVoting] = useState(false);
-  const [showHeatmap, setShowHeatmap] = useState(false);
-  
+
   const isProposalOwner = proposal.proposed_by === currentUserId;
-  
+
   const formatDateRange = (startDate: string, endDate: string) => {
     const start = new Date(startDate);
     const end = new Date(endDate);
-    
-    const startStr = start.toLocaleDateString('en-US', { 
-      month: 'short', 
+
+    const startStr = start.toLocaleDateString('en-US', {
+      month: 'short',
       day: 'numeric',
       year: start.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
     });
-    
-    const endStr = end.toLocaleDateString('en-US', { 
-      month: 'short', 
+
+    const endStr = end.toLocaleDateString('en-US', {
+      month: 'short',
       day: 'numeric',
       year: end.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
     });
-    
+
     if (startDate === endDate) {
       return startStr;
     }
-    
+
     return `${startStr} - ${endStr}`;
   };
 
@@ -90,14 +87,14 @@ export function DateProposalCard({
     const end = new Date(endDate);
     const diffTime = Math.abs(end.getTime() - start.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-    
+
     if (diffDays === 1) return '1 day';
     return `${diffDays} days`;
   };
 
   const handleVote = async (voteType: VoteType) => {
     if (!onVote || isVoting) return;
-    
+
     setIsVoting(true);
     try {
       await onVote(proposal.id, voteType);
@@ -108,7 +105,7 @@ export function DateProposalCard({
 
   const handleDelete = async () => {
     if (!onDelete) return;
-    
+
     const confirmed = window.confirm('Are you sure you want to delete this date proposal? This action cannot be undone.');
     if (confirmed) {
       await onDelete(proposal.id);
@@ -117,7 +114,7 @@ export function DateProposalCard({
 
   const handleFinalize = async () => {
     if (!onFinalize) return;
-    
+
     const confirmed = window.confirm('Are you sure you want to finalize this date proposal? This will mark it as the chosen dates for the trip.');
     if (confirmed) {
       await onFinalize(proposal.id);
@@ -127,38 +124,31 @@ export function DateProposalCard({
   const getVoteButtonStyle = (voteType: VoteType) => {
     const isActive = proposal.user_vote === voteType;
     const baseClasses = "flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors";
-    
+
     switch (voteType) {
       case 'upvote':
         return cn(
           baseClasses,
-          isActive 
+          isActive
             ? "bg-green-100 text-green-800 border border-green-300 dark:bg-green-900 dark:text-green-200 dark:border-green-700"
             : "hover:bg-green-50 hover:text-green-700 dark:hover:bg-green-900 dark:hover:text-green-200"
         );
       case 'downvote':
         return cn(
           baseClasses,
-          isActive 
+          isActive
             ? "bg-red-100 text-red-800 border border-red-300 dark:bg-red-900 dark:text-red-200 dark:border-red-700"
             : "hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-900 dark:hover:text-red-200"
         );
       case 'neutral':
         return cn(
           baseClasses,
-          isActive 
+          isActive
             ? "bg-gray-100 text-gray-800 border border-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600"
             : "hover:bg-gray-50 hover:text-gray-700 dark:hover:bg-gray-700 dark:hover:text-gray-200"
         );
     }
   };
-
-  const relevantHeatmapData = availabilityData.filter(d => {
-    const date = new Date(d.date);
-    const start = new Date(proposal.start_date);
-    const end = new Date(proposal.end_date);
-    return date >= start && date <= end;
-  });
 
   return (
     <Card className={cn(
@@ -177,7 +167,7 @@ export function DateProposalCard({
                 </Badge>
               )}
             </div>
-            
+
             <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
               <div className="flex items-center gap-1">
                 <Calendar className="h-4 w-4" />
@@ -214,6 +204,18 @@ export function DateProposalCard({
                   <DropdownMenuItem onClick={handleDelete} className="text-red-600 dark:text-red-400">
                     <Trash2 className="h-4 w-4 mr-2" />
                     Delete
+                  </DropdownMenuItem>
+                )}
+                {canEdit && proposal.user_vote && (
+                  <DropdownMenuItem
+                    onClick={() => {
+                      if (window.confirm('Clear your vote for this proposal?')) {
+                        onEraseVote?.(proposal.id);
+                      }
+                    }}
+                  >
+                    <Minus className="h-4 w-4 mr-2 text-gray-500" />
+                    Erase My Vote
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
@@ -263,61 +265,6 @@ export function DateProposalCard({
           </div>
         )}
 
-        {/* Availability heatmap */}
-        {relevantHeatmapData.length > 0 && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <h4 className="font-medium text-sm text-gray-700 dark:text-gray-300">
-                Team Availability
-              </h4>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowHeatmap(!showHeatmap)}
-              >
-                {showHeatmap ? 'Hide' : 'Show'} Details
-              </Button>
-            </div>
-            
-            {showHeatmap && (
-              <AvailabilityHeatmap
-                data={relevantHeatmapData}
-                title=""
-                showDetails={true}
-                className="border-0 shadow-none"
-              />
-            )}
-            
-            {!showHeatmap && (
-              <div className="flex items-center gap-2 text-sm">
-                <div className="flex gap-1">
-                  {relevantHeatmapData.slice(0, 7).map((item) => (
-                    <div
-                      key={item.date}
-                      className={cn(
-                        'w-4 h-4 rounded-sm border',
-                        item.availability_percentage >= 80 
-                          ? 'bg-green-400 border-green-500'
-                          : item.availability_percentage >= 60
-                          ? 'bg-yellow-400 border-yellow-500'
-                          : item.availability_percentage >= 40
-                          ? 'bg-orange-400 border-orange-500'
-                          : 'bg-red-400 border-red-500'
-                      )}
-                      title={`${new Date(item.date).toLocaleDateString()}: ${item.availability_percentage}% available`}
-                    />
-                  ))}
-                  {relevantHeatmapData.length > 7 && (
-                    <span className="text-xs text-gray-500 ml-1">
-                      +{relevantHeatmapData.length - 7} more days
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
         {/* Actions */}
         <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-2">
@@ -332,7 +279,7 @@ export function DateProposalCard({
                   <ThumbsUp className="h-3 w-3" />
                   <span>{proposal.vote_stats?.upvotes || 0}</span>
                 </button>
-                
+
                 <button
                   onClick={() => handleVote('neutral')}
                   disabled={isVoting}
@@ -341,7 +288,7 @@ export function DateProposalCard({
                   <Minus className="h-3 w-3" />
                   <span>{proposal.vote_stats?.neutral_votes || 0}</span>
                 </button>
-                
+
                 <button
                   onClick={() => handleVote('downvote')}
                   disabled={isVoting}

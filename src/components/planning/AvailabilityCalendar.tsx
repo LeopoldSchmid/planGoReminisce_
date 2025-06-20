@@ -56,11 +56,11 @@ export function AvailabilityCalendar({
   const [currentDate, setCurrentDate] = useState(new Date());
   const [mode, setMode] = useState<CalendarMode>('quick');
   const [paintBrushStatus, setPaintBrushStatus] = useState<AvailabilityStatus>('unavailable');
-  
+
   // For detailed mode
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedDatesForModal, setSelectedDatesForModal] = useState<string[]>([]);
-  
+
   // For range selection
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartDate, setDragStartDate] = useState<string | null>(null);
@@ -83,7 +83,7 @@ export function AvailabilityCalendar({
       const date = new Date(firstDayOfMonth);
       date.setDate(date.getDate() - (i + 1));
       const dateStr = date.toISOString().split('T')[0];
-      
+
       dates.push({
         date: dateStr,
         day: date.getDate(),
@@ -100,7 +100,7 @@ export function AvailabilityCalendar({
     for (let day = 1; day <= lastDayOfMonth.getDate(); day++) {
       const date = new Date(currentYear, currentMonth, day);
       const dateStr = date.toISOString().split('T')[0];
-      
+
       dates.push({
         date: dateStr,
         day,
@@ -118,7 +118,7 @@ export function AvailabilityCalendar({
     for (let day = 1; day <= remainingDays; day++) {
       const date = new Date(currentYear, currentMonth + 1, day);
       const dateStr = date.toISOString().split('T')[0];
-      
+
       dates.push({
         date: dateStr,
         day,
@@ -151,7 +151,7 @@ export function AvailabilityCalendar({
       // Quick mode: paint with selected brush
       const newDates = new Map(selectedDates);
       const { date } = calendarDate;
-      
+
       if (paintBrushStatus === 'available' && selectedDates.get(date) === 'available') {
         // If already set to the same status, remove it (make it ideal)
         newDates.delete(date);
@@ -181,7 +181,7 @@ export function AvailabilityCalendar({
 
   const handleTouchStart = (calendarDate: CalendarDate) => {
     if (disabled) return;
-    
+
     setIsDragging(true);
     setDragStartDate(calendarDate.date);
     handleDateClick(calendarDate);
@@ -195,10 +195,10 @@ export function AvailabilityCalendar({
       const newDates = new Map(selectedDates);
       const startDate = new Date(dragStartDate);
       const endDate = new Date(calendarDate.date);
-      
+
       // Ensure start is before end
       const [from, to] = startDate <= endDate ? [startDate, endDate] : [endDate, startDate];
-      
+
       // Apply the paint brush status to all dates in the range
       const current = new Date(from);
       while (current <= to) {
@@ -213,13 +213,13 @@ export function AvailabilityCalendar({
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!isDragging || !dragStartDate || mode !== 'quick') return;
-    
+
     e.preventDefault();
-    
+
     // Get the element under the touch point
     const touch = e.touches[0];
     const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
-    
+
     if (elementBelow && elementBelow.hasAttribute('data-date')) {
       const dateStr = elementBelow.getAttribute('data-date');
       if (dateStr) {
@@ -274,6 +274,8 @@ export function AvailabilityCalendar({
       baseClasses.push('bg-destructive/10 border-destructive/30 text-destructive hover:bg-destructive/20');
     } else if (availability === 'available') {
       baseClasses.push('bg-success/10 border-success/30 text-success hover:bg-success/20');
+    } else if (availability === 'maybe') {
+      baseClasses.push('bg-orange-100 border-orange-300 text-orange-700 hover:bg-orange-200');
     }
 
     // Heatmap styling (if enabled and no availability set)
@@ -298,7 +300,7 @@ export function AvailabilityCalendar({
 
   const getHeatmapTooltip = (calendarDate: CalendarDate) => {
     if (!showHeatmap || !heatmapData) return null;
-    
+
     const heatmapEntry = heatmapData.find(h => h.date === calendarDate.date);
     if (!heatmapEntry) return null;
 
@@ -307,7 +309,7 @@ export function AvailabilityCalendar({
 
   const handleDetailedSave = (status: AvailabilityStatus, notes?: string) => {
     const newDates = new Map(selectedDates);
-    
+
     selectedDatesForModal.forEach(date => {
       if (status === 'available' && notes === undefined) {
         // This means "ideal" was selected - remove the date
@@ -416,7 +418,7 @@ export function AvailabilityCalendar({
             )}
           </div>
         )}
-        
+
         {showLegend && (
           <div className="flex flex-wrap gap-3 text-xs text-muted-foreground justify-center">
             {!showHeatmap ? (
@@ -461,7 +463,7 @@ export function AvailabilityCalendar({
           <div className="flex items-center gap-1 text-xs text-muted-foreground justify-center text-center">
             <Info className="h-3 w-3 shrink-0" />
             <span>
-              {mode === 'quick' 
+              {mode === 'quick'
                 ? 'Tap or drag to paint dates. Tap same status to remove.'
                 : 'Tap dates to open detailed availability editor.'
               }
@@ -482,13 +484,13 @@ export function AvailabilityCalendar({
           </div>
 
           {/* Calendar grid */}
-          <div 
+          <div
             className="grid grid-cols-7 gap-2 sm:gap-1"
             onTouchMove={handleTouchMove}
           >
             {calendarDates.map((calendarDate, index) => {
               const tooltip = getHeatmapTooltip(calendarDate);
-              
+
               return (
                 <div
                   key={index}

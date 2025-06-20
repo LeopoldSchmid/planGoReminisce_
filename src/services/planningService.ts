@@ -558,12 +558,12 @@ export async function createComment(
       .eq('id', data.user_id)
       .single();
 
-    return { 
+    return {
       comment: {
         ...data,
         user_profile: profileData
-      }, 
-      error: null 
+      },
+      error: null
     };
   } catch (err) {
     console.error('Unexpected error in createComment:', err);
@@ -697,12 +697,12 @@ export async function updateComment(
       .eq('id', data.user_id)
       .single();
 
-    return { 
+    return {
       comment: {
         ...data,
         user_profile: profileData
-      }, 
-      error: null 
+      },
+      error: null
     };
   } catch (err) {
     console.error('Unexpected error in updateComment:', err);
@@ -763,5 +763,31 @@ async function getDiscussionCount(
   } catch (err) {
     console.error('Unexpected error in getDiscussionCount:', err);
     return { count: null, error: err };
+  }
+}
+
+/**
+ * Delete a user's vote for a specific date proposal
+ */
+export async function deleteVoteForDateProposal(
+  userId: string,
+  dateProposalId: string
+): Promise<{ success: boolean; error: any }> {
+  try {
+    const { error } = await supabase
+      .from('proposal_votes')
+      .delete()
+      .eq('user_id', userId)
+      .eq('date_proposal_id', dateProposalId);
+
+    if (error) {
+      console.error('Error deleting vote:', error);
+      return { success: false, error };
+    }
+
+    return { success: true, error: null };
+  } catch (err) {
+    console.error('Unexpected error in deleteVoteForDateProposal:', err);
+    return { success: false, error: err };
   }
 }

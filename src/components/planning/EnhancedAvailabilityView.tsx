@@ -7,9 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ChevronLeft, ChevronRight, Plus, MessageSquare, Send, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, MessageSquare, Send, X, Edit2, Trash2, EyeOff, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AvailabilityStatus } from '@/services/availabilityService';
+import { ProposalDiscussion } from './ProposalDiscussion';
 
 interface DateRange {
   id: string;
@@ -52,6 +53,7 @@ interface EnhancedAvailabilityViewProps {
   dateRanges: DateRange[];
   onCreateDateRange: (range: { name: string; startDate: string; endDate: string; comment?: string }) => void;
   onDiscussionUpdate: (rangeId: string, message: string) => void;
+  onDeleteDateRange: (rangeId: string) => void;
   currentUserId: string;
   currentUserName: string;
   className?: string;
@@ -73,28 +75,35 @@ export function EnhancedAvailabilityView({
   dateRanges,
   onCreateDateRange,
   onDiscussionUpdate,
+  onDeleteDateRange,
   currentUserId,
   currentUserName,
   className
 }: EnhancedAvailabilityViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDiscussionRange, setSelectedDiscussionRange] = useState<DateRange | null>(null);
   const [activeTab, setActiveTab] = useState<'availability' | 'summary'>('availability');
-  
+
   // Availability painting state
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartDate, setDragStartDate] = useState<string | null>(null);
   const [selectedRange, setSelectedRange] = useState<{ start: Date; end: Date } | null>(null);
   const [pendingStartDate, setPendingStartDate] = useState<Date | null>(null); // first tap on mobile
   const [selectedAvailabilityType, setSelectedAvailabilityType] = useState<AvailabilityStatus>('available');
-  
+
   // Modal states
   const [isAddRangeModalOpen, setIsAddRangeModalOpen] = useState(false);
   const [rangeName, setRangeName] = useState('');
   const [rangeComment, setRangeComment] = useState('');
-  
+
   // Discussion state
-  const [selectedDiscussionRange, _setSelectedDiscussionRange] = useState<DateRange | null>(null);
   const [discussionMessage, setDiscussionMessage] = useState('');
+
+  // New state for expanded card
+  const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
+
+  // New state for FAB menu
+  const [showFabMenu, setShowFabMenu] = useState(false);
 
   const currentMonth = currentDate.getMonth();
   const currentYear = currentDate.getFullYear();
@@ -103,6 +112,11 @@ export function EnhancedAvailabilityView({
     if (!selectedRange) return false;
     return date >= selectedRange.start && date <= selectedRange.end;
   }, [selectedRange]);
+
+  // Helper to convert Date to YYYY-MM-DD in local time
+  function toYMD(date: Date) {
+    return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+  }
 
   // Generate calendar dates
   const generateCalendarDates = useCallback((): CalendarDate[] => {
@@ -118,8 +132,8 @@ export function EnhancedAvailabilityView({
     for (let i = firstDayOfWeek - 1; i >= 0; i--) {
       const date = new Date(firstDayOfMonth);
       date.setDate(date.getDate() - (i + 1));
-      const dateStr = date.toISOString().split('T')[0];
-      
+      const dateStr = toYMD(date);
+
       dates.push({
         date: dateStr,
         day: date.getDate(),
@@ -136,8 +150,8 @@ export function EnhancedAvailabilityView({
     // Add current month's dates
     for (let day = 1; day <= lastDayOfMonth.getDate(); day++) {
       const date = new Date(currentYear, currentMonth, day);
-      const dateStr = date.toISOString().split('T')[0];
-      
+      const dateStr = toYMD(date);
+
       dates.push({
         date: dateStr,
         day,
@@ -155,8 +169,8 @@ export function EnhancedAvailabilityView({
     const remainingDays = 42 - dates.length;
     for (let day = 1; day <= remainingDays; day++) {
       const date = new Date(currentYear, currentMonth + 1, day);
-      const dateStr = date.toISOString().split('T')[0];
-      
+      const dateStr = toYMD(date);
+
       dates.push({
         date: dateStr,
         day,
@@ -214,7 +228,7 @@ export function EnhancedAvailabilityView({
 
     // If same day, directly paint availability and reset
     if (start.getTime() === end.getTime()) {
-      const dateStr = clicked.toISOString().split('T')[0];
+      const dateStr = toYMD(clicked);
       const newDates = new Map(selectedDates);
       newDates.set(dateStr, selectedAvailabilityType);
       onDatesChange(newDates);
@@ -233,7 +247,7 @@ export function EnhancedAvailabilityView({
 
     const startDate = new Date(dragStartDate);
     const endDate = new Date(calendarDate.date);
-    
+
     const [from, to] = startDate <= endDate ? [startDate, endDate] : [endDate, startDate];
     setSelectedRange({ start: from, end: to });
   };
@@ -241,7 +255,7 @@ export function EnhancedAvailabilityView({
   const handleMouseDown = (calendarDate: CalendarDate) => {
     if (isTouchDevice) return; // skip drag logic on touch
     if (!calendarDate.isCurrentMonth) return;
-    
+
     setIsDragging(true);
     setDragStartDate(calendarDate.date);
     handleDateClick(calendarDate);
@@ -253,16 +267,16 @@ export function EnhancedAvailabilityView({
       const newDates = new Map(selectedDates);
       let currentDate = new Date(selectedRange.start);
       const endDate = new Date(selectedRange.end);
-      
+
       while (currentDate <= endDate) {
-        const dateStr = currentDate.toISOString().split('T')[0];
+        const dateStr = toYMD(currentDate);
         newDates.set(dateStr, selectedAvailabilityType);
         currentDate.setDate(currentDate.getDate() + 1);
       }
-      
+
       onDatesChange(newDates);
     }
-    
+
     setIsDragging(false);
     setDragStartDate(null);
     setSelectedRange(null);
@@ -272,10 +286,22 @@ export function EnhancedAvailabilityView({
   const handleSaveRange = () => {
     if (!selectedRange || !rangeName.trim()) return;
 
+    // Paint availability for all dates in the range
+    const newDates = new Map(selectedDates);
+    let cur = new Date(selectedRange.start);
+    const end = new Date(selectedRange.end);
+    while (cur <= end) {
+      const dateStr = toYMD(cur);
+      newDates.set(dateStr, selectedAvailabilityType);
+      cur.setDate(cur.getDate() + 1);
+    }
+    onDatesChange(newDates);
+
+    // Notify parent about new range
     onCreateDateRange({
       name: rangeName,
-      startDate: selectedRange.start.toISOString().split('T')[0],
-      endDate: selectedRange.end.toISOString().split('T')[0],
+      startDate: toYMD(selectedRange.start),
+      endDate: toYMD(selectedRange.end),
       comment: rangeComment.trim() || undefined
     });
 
@@ -295,7 +321,7 @@ export function EnhancedAvailabilityView({
 
   const handleDiscussionSubmit = () => {
     if (!selectedDiscussionRange || !discussionMessage.trim()) return;
-    
+
     onDiscussionUpdate(selectedDiscussionRange.id, discussionMessage.trim());
     setDiscussionMessage('');
   };
@@ -345,7 +371,7 @@ export function EnhancedAvailabilityView({
     if (selectedRange && selectedRange.start.getTime() !== selectedRange.end.getTime()) {
       openRangeModal(selectedRange.start, selectedRange.end);
     }
-    
+
     setIsDragging(false);
     setDragStartDate(null);
   }, [selectedRange]);
@@ -356,6 +382,11 @@ export function EnhancedAvailabilityView({
       return () => document.removeEventListener('mouseup', handleMouseUpCallback);
     }
   }, [isDragging, handleMouseUpCallback]);
+
+  const onEditDateRange = (id: string) => { /* TODO: implement edit */ };
+  const onChangeVote = (id: string) => { /* TODO: implement change vote */ };
+  const onDeleteRange = (id: string) => { /* TODO: implement delete */ };
+  const onHideRange = (id: string) => { /* TODO: implement hide */ };
 
   return (
     <div className={cn('max-w-md mx-auto', className)}>
@@ -384,11 +415,11 @@ export function EnhancedAvailabilityView({
           {/* Availability Type Selector */}
           <div className="flex items-center justify-center gap-3 mb-4">
             <button
-              onClick={() => setSelectedAvailabilityType('available')}
+              onClick={() => setSelectedAvailabilityType('available' as AvailabilityStatus)}
               className={cn(
                 "flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200",
-                selectedAvailabilityType === 'available' 
-                  ? "bg-green-100 border border-green-300 shadow-sm" 
+                selectedAvailabilityType === 'available'
+                  ? "bg-green-100 border border-green-300 shadow-sm"
                   : "hover:bg-gray-50"
               )}
             >
@@ -398,11 +429,11 @@ export function EnhancedAvailabilityView({
               )}
             </button>
             <button
-              onClick={() => setSelectedAvailabilityType('maybe')}
+              onClick={() => setSelectedAvailabilityType('maybe' as AvailabilityStatus)}
               className={cn(
                 "flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200",
-                selectedAvailabilityType === 'maybe' 
-                  ? "bg-orange-100 border border-orange-300 shadow-sm" 
+                selectedAvailabilityType === 'maybe'
+                  ? "bg-orange-100 border border-orange-300 shadow-sm"
                   : "hover:bg-gray-50"
               )}
             >
@@ -412,11 +443,11 @@ export function EnhancedAvailabilityView({
               )}
             </button>
             <button
-              onClick={() => setSelectedAvailabilityType('unavailable')}
+              onClick={() => setSelectedAvailabilityType('unavailable' as AvailabilityStatus)}
               className={cn(
                 "flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200",
-                selectedAvailabilityType === 'unavailable' 
-                  ? "bg-red-100 border border-red-300 shadow-sm" 
+                selectedAvailabilityType === 'unavailable'
+                  ? "bg-red-100 border border-red-300 shadow-sm"
                   : "hover:bg-gray-50"
               )}
             >
@@ -432,8 +463,8 @@ export function EnhancedAvailabilityView({
             <CardContent className="p-4">
               {/* Days header */}
               <div className="grid grid-cols-7 gap-1 mb-2">
-                {DAYS.map(day => (
-                  <div key={day} className="text-center text-sm font-medium text-muted-foreground py-2">
+                {DAYS.map((day, i) => (
+                  <div key={`${day}-${i}`} className="text-center text-sm font-medium text-muted-foreground py-2">
                     {day}
                   </div>
                 ))}
@@ -460,107 +491,126 @@ export function EnhancedAvailabilityView({
 
         {/* Summary Tab */}
         <TabsContent value="summary" className="space-y-4">
-          {dateRanges.map(range => (
-            <Card key={range.id} className="relative transform transition-all duration-300 hover:scale-[1.02] hover:shadow-lg">
-              <CardContent className="p-4">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                    SC
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-2">
+          {dateRanges.map(range => {
+            const unavailableVotes = Math.max(0, range.votes.total - range.votes.available - range.votes.canWork);
+            const mappedDiscussions = range.discussions.map(d => ({
+              id: d.id,
+              trip_id: '',
+              user_id: d.user,
+              comment_text: d.message,
+              is_edited: false,
+              created_at: d.timestamp,
+              updated_at: d.timestamp,
+              user_profile: { username: d.userName },
+              replies: []
+            }));
+            const isExpanded = expandedCardId === range.id;
+            const userHasVoted = range.votes.available > 0 || range.votes.canWork > 0;
+            return (
+              <Card key={range.id} className="relative transition-all duration-300 hover:scale-[1.02] hover:shadow-lg">
+                {/* Card Header - only this toggles expansion */}
+                <div
+                  className="flex items-center justify-between cursor-pointer select-none p-4"
+                  onClick={() => setExpandedCardId(isExpanded ? null : range.id)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center text-white text-sm font-bold">SC</div>
+                    <div>
                       <h3 className="font-semibold">{range.name}</h3>
-                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                        <span>{range.votes.total} votes</span>
-                        <ChevronRight className="h-4 w-4" />
-                      </div>
+                      <div className="text-xs text-muted-foreground">by {range.createdByName}</div>
                     </div>
-                    <div className="text-sm text-muted-foreground mb-2">
-                      by {range.createdByName}
-                    </div>
-                    
-                    {/* Vote Bar */}
-                    <div className="flex rounded-full overflow-hidden h-2 mb-3">
-                      <div 
-                        className="bg-green-500" 
-                        style={{ width: `${(range.votes.available / range.votes.total) * 100}%` }}
-                      />
-                      <div 
-                        className="bg-orange-500" 
-                        style={{ width: `${(range.votes.canWork / range.votes.total) * 100}%` }}
-                      />
-                    </div>
-                    
-                    <div className="flex items-center gap-4 text-sm">
-                      <div className="flex items-center gap-1">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span>{range.votes.available} available</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                        <span>{range.votes.canWork} can work</span>
-                      </div>
-                    </div>
-
-                    {/* Discussion Section */}
-                    {selectedDiscussionRange?.id === range.id && (
-                      <div className="mt-4 space-y-3">
-                        <div className="flex items-center gap-2 text-sm font-medium">
-                          <MessageSquare className="h-4 w-4" />
-                          Discussion
-                        </div>
-                        
-                        {range.discussions.map(discussion => (
-                          <div key={discussion.id} className="flex gap-3">
-                            <div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center text-xs">
-                              {discussion.userName.charAt(0)}
-                            </div>
-                            <div className="flex-1">
-                              <div className="text-sm font-medium">{discussion.userName}</div>
-                              <div className="text-sm text-muted-foreground">{discussion.message}</div>
-                              <div className="text-xs text-muted-foreground mt-1">{discussion.timestamp}</div>
-                            </div>
-                          </div>
-                        ))}
-                        
-                        <div className="flex gap-2">
-                          <Input
-                            placeholder="Add a comment..."
-                            value={discussionMessage}
-                            onChange={(e) => setDiscussionMessage(e.target.value)}
-                            className="flex-1"
-                          />
-                          <Button 
-                            size="sm" 
-                            onClick={handleDiscussionSubmit}
-                            disabled={!discussionMessage.trim()}
-                          >
-                            <Send className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">{range.votes.total} votes</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className={cn(
+                        "h-8 w-8 p-0 transition-transform",
+                        isExpanded ? "rotate-90" : "rotate-0"
+                      )}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowFabMenu((prev) => !prev);
+                      }}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
+                {/* Vote Bar */}
+                <div className="px-4">
+                  <div className="relative w-full h-3 mb-3 bg-muted rounded-full overflow-hidden flex">
+                    <div className="bg-green-500 h-full" style={{ width: `${(range.votes.available / range.votes.total) * 100}%` }} />
+                    <div className="bg-orange-400 h-full" style={{ width: `${(range.votes.canWork / range.votes.total) * 100}%` }} />
+                    <div className="bg-red-500 h-full" style={{ width: `${(unavailableVotes / range.votes.total) * 100}%` }} />
+                  </div>
+                </div>
+                {/* Expandable Content */}
+                <div
+                  className={cn(
+                    "transition-all duration-300 overflow-hidden",
+                    isExpanded ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0 pointer-events-none"
+                  )}
+                  onClick={e => e.stopPropagation()}
+                >
+                  <CardContent className="pt-0">
+                    <ProposalDiscussion
+                      discussions={mappedDiscussions}
+                      currentUserId={currentUserId}
+                      onAddComment={async (text) => { onDiscussionUpdate(range.id, text); }}
+                      placeholder="Add a comment..."
+                      className="mt-4"
+                    />
+                    {showFabMenu && (
+                      <div className="absolute right-0 top-12 z-20 min-w-[180px] bg-white text-gray-900 rounded-xl shadow-lg py-2 px-2 flex flex-col gap-1 border border-gray-200">
+                        {/* Caret/arrow */}
+                        <div className="absolute -top-2 right-4 w-4 h-4 overflow-hidden">
+                          <div className="w-4 h-4 bg-white border-gray-200 rotate-45 shadow-md border-t border-l border-gray-200"></div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          className="justify-start px-3 py-2 rounded-lg text-sm hover:bg-gray-100 focus:bg-gray-200"
+                          disabled={currentUserId !== range.createdBy}
+                          onClick={e => { e.stopPropagation(); onEditDateRange(range.id); setShowFabMenu(false); }}
+                        >
+                          <Edit2 className="h-4 w-4 mr-2" /> Edit date range
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          className="justify-start px-3 py-2 rounded-lg text-sm hover:bg-gray-100 focus:bg-gray-200"
+                          disabled={!userHasVoted}
+                          onClick={e => { e.stopPropagation(); onChangeVote(range.id); setShowFabMenu(false); }}
+                        >
+                          <CheckCircle className="h-4 w-4 mr-2" /> Change my vote
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          className="justify-start px-3 py-2 rounded-lg text-sm hover:bg-gray-100 focus:bg-gray-200 text-red-600"
+                          disabled={currentUserId !== range.createdBy}
+                          onClick={e => { e.stopPropagation(); onDeleteDateRange(range.id); setShowFabMenu(false); }}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" /> Delete range
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          className="justify-start px-3 py-2 rounded-lg text-sm hover:bg-gray-100 focus:bg-gray-200"
+                          onClick={e => { e.stopPropagation(); onHideRange(range.id); setShowFabMenu(false); }}
+                        >
+                          <EyeOff className="h-4 w-4 mr-2" /> Hide range
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </div>
+              </Card>
+            );
+          })}
         </TabsContent>
       </Tabs>
 
-      {/* Floating Action Button */}
-      <div className="fixed bottom-6 right-6">
-        <Button
-          size="lg"
-          className="rounded-full w-14 h-14 bg-orange-500 hover:bg-orange-600 shadow-lg transform transition-all duration-300 hover:scale-110 active:scale-95 hover:shadow-xl hover:shadow-orange-200"
-          onClick={() => setIsAddRangeModalOpen(true)}
-        >
-          <Plus className="h-6 w-6 transition-transform duration-200 hover:rotate-90" />
-        </Button>
-      </div>
-
       {/* Add Date Range Sheet */}
-      <Sheet open={isAddRangeModalOpen} onOpenChange={setIsAddRangeModalOpen}> 
+      <Sheet open={isAddRangeModalOpen} onOpenChange={setIsAddRangeModalOpen}>
         <SheetContent side="bottom" className="w-full pt-4 pb-8 rounded-t-2xl max-h-[80vh] overflow-y-auto bg-white text-gray-900 dark:bg-white dark:text-gray-900 shadow-xl">
           <SheetHeader className="relative">
             <SheetTitle>Add Date Range</SheetTitle>

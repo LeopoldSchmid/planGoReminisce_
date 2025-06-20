@@ -12,16 +12,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { 
-  MessageCircle, 
-  Send, 
-  Reply, 
+import {
+  MessageCircle,
+  Send,
+  Reply,
   MoreHorizontal,
   Edit2,
   Trash2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { ProposalDiscussion } from '@/services/planningService';
+import type { ProposalDiscussion } from '@/services/planningService';
 
 interface CommentItemProps {
   comment: ProposalDiscussion;
@@ -61,13 +61,13 @@ function CommentItem({
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
     if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
-    
+
     return date.toLocaleDateString();
   };
 
   const handleEdit = async () => {
     if (!onEdit || !editText.trim()) return;
-    
+
     setIsSubmitting(true);
     try {
       await onEdit(comment.id, editText);
@@ -79,7 +79,7 @@ function CommentItem({
 
   const handleReply = async () => {
     if (!onReply || !replyText.trim()) return;
-    
+
     setIsSubmitting(true);
     try {
       await onReply(comment.id, replyText);
@@ -92,7 +92,7 @@ function CommentItem({
 
   const handleDelete = async () => {
     if (!onDelete) return;
-    
+
     const confirmed = window.confirm('Are you sure you want to delete this comment?');
     if (confirmed) {
       await onDelete(comment.id);
@@ -276,10 +276,11 @@ export function ProposalDiscussion({
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
 
   const handleAddComment = async () => {
     if (!onAddComment || !newComment.trim()) return;
-    
+
     setIsSubmitting(true);
     try {
       await onAddComment(newComment);
@@ -334,18 +335,43 @@ export function ProposalDiscussion({
         {/* Comments list */}
         {discussions.length > 0 ? (
           <div className="space-y-6">
-            {discussions.map((comment) => (
-              <CommentItem
-                key={comment.id}
-                comment={comment}
-                currentUserId={currentUserId}
-                onReply={handleReply}
-                onEdit={onEdit}
-                onDelete={onDelete}
-                isReplying={replyingTo === comment.id}
-                onToggleReply={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
-              />
-            ))}
+            {showAll ? (
+              discussions.map((comment) => (
+                <CommentItem
+                  key={comment.id}
+                  comment={comment}
+                  currentUserId={currentUserId}
+                  onReply={handleReply}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                  isReplying={replyingTo === comment.id}
+                  onToggleReply={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
+                />
+              ))
+            ) : (
+              discussions.slice(-2).map((comment) => (
+                <CommentItem
+                  key={comment.id}
+                  comment={comment}
+                  currentUserId={currentUserId}
+                  onReply={handleReply}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                  isReplying={replyingTo === comment.id}
+                  onToggleReply={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
+                />
+              ))
+            )}
+            {discussions.length > 2 && !showAll && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowAll(true)}
+                className="w-full justify-center text-xs text-gray-500 dark:text-gray-400"
+              >
+                Show more
+              </Button>
+            )}
           </div>
         ) : (
           <div className="text-center py-8 text-gray-500 dark:text-gray-400">

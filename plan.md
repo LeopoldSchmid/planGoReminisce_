@@ -231,3 +231,24 @@ To create "Plangoreminisce," a responsive web application designed to simplify a
     *   (Potential) Offline Access Capabilities
 
 This consolidated plan will serve as the primary reference for ongoing development.
+
+---
+
+## Feature Status: Dates & Destinations (Mobile-Friendly Availability)
+
+**Completed**
+* Off-by-one bug fixed (local `toYMD` helper).
+* Auto-vote: creator automatically receives an "available" vote on new range (writes to `proposal_votes`).
+* Summary tab toggle and basic range expansion working.
+
+**In Progress**
+* Horizontal vote bar – segments render but widths still need correct math + colouring.
+* Keep card open while typing comment (stopPropagation fix pending).
+* Creator-only delete button UI & mutation wiring.
+
+**Next Up**
+* Edit range title / dates.
+* "Eraser" tool to clear own indicated ranges with confirm dialog.
+* Heat-map integration for calendar view.
+* Mobile a11y polish & RWD testing.
+

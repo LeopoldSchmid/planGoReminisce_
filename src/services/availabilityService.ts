@@ -2,7 +2,7 @@ import { createSupabaseBrowserClient } from '@/lib/supabaseClient';
 
 const supabase = createSupabaseBrowserClient();
 
-export type AvailabilityStatus = 'available' | 'unavailable';
+export type AvailabilityStatus = 'available' | 'unavailable' | 'maybe';
 
 export interface UserAvailability {
   id: string;
@@ -63,7 +63,7 @@ export async function getUserAvailability(
       return { availability: null, error };
     }
 
-    return { availability: data, error: null };
+    return { availability: data.map(d => ({ ...d, availability_status: d.availability_status as AvailabilityStatus, notes: d.notes ?? undefined })), error: null };
   } catch (err) {
     console.error('Unexpected error in getUserAvailability:', err);
     return { availability: null, error: err };
@@ -92,9 +92,9 @@ export async function setUserAvailability(
           notes: d.notes,
           updated_at: new Date().toISOString()
         })),
-        { 
+        {
           onConflict: 'user_id,date',
-          ignoreDuplicates: false 
+          ignoreDuplicates: false
         }
       );
 
@@ -163,7 +163,7 @@ export async function getTripAvailabilityOverrides(
       return { overrides: null, error };
     }
 
-    return { overrides: data, error: null };
+    return { overrides: data.map(d => ({ ...d, availability_status: d.availability_status as AvailabilityStatus, override_reason: d.override_reason ?? undefined })), error: null };
   } catch (err) {
     console.error('Unexpected error in getTripAvailabilityOverrides:', err);
     return { overrides: null, error: err };
@@ -194,9 +194,9 @@ export async function setTripAvailabilityOverrides(
           override_reason: o.override_reason,
           updated_at: new Date().toISOString()
         })),
-        { 
+        {
           onConflict: 'trip_id,user_id,date',
-          ignoreDuplicates: false 
+          ignoreDuplicates: false
         }
       );
 
@@ -314,7 +314,7 @@ export async function getEffectiveAvailability(
 export async function getTripMembersAvailability(
   tripId: string,
   dateRange: DateRange
-): Promise<{ 
+): Promise<{
   availability: Array<{
     user_id: string;
     date: string;
@@ -322,8 +322,8 @@ export async function getTripMembersAvailability(
     is_override: boolean;
     notes?: string;
     override_reason?: string;
-  }> | null; 
-  error: any 
+  }> | null;
+  error: any
 }> {
   try {
     // Get all trip members
@@ -382,7 +382,7 @@ export async function getTripMembersAvailability(
             date,
             status: override.availability_status as AvailabilityStatus,
             is_override: true,
-            override_reason: override.override_reason
+            override_reason: override.override_reason ?? undefined
           });
         } else if (base) {
           result.push({
@@ -390,7 +390,7 @@ export async function getTripMembersAvailability(
             date,
             status: base.availability_status as AvailabilityStatus,
             is_override: false,
-            notes: base.notes
+            notes: base.notes ?? undefined
           });
         } else {
           // Default to available if no specific availability is set
