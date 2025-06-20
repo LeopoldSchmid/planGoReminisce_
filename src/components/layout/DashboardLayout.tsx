@@ -1,12 +1,14 @@
 "use client";
 
 import { useAuth } from "@/context/AuthContext";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { signOut } from "@/services/authService";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
+import { getTripById } from "@/services/tripService";
 import { Menu, X } from "lucide-react";
 
 export default function DashboardLayout({
@@ -16,6 +18,20 @@ export default function DashboardLayout({
 }) {
   const { user, isLoading } = useAuth();
   const router = useRouter();
+  const params = useParams();
+  const tripId = params?.tripId as string | undefined;
+
+  const { data: tripData } = useQuery({
+    queryKey: ["tripDetails", tripId, user?.id],
+    queryFn: () => {
+      if (!tripId || !user?.id) throw new Error("Trip ID or User ID is missing");
+      return getTripById(tripId, user.id);
+    },
+    enabled: !!tripId && !!user?.id,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+
+  const tripName = tripData?.trip?.name ?? null;
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -51,8 +67,13 @@ export default function DashboardLayout({
                 href="/" 
                 className="text-xl font-bold text-brand-primary hover:text-brand-primary transition-colors"
               >
-                Plangoreminisce
+                pgr
               </Link>
+              {tripName && (
+                <span className="ml-4 text-lg font-semibold text-foreground truncate max-w-[15ch]" title={tripName}>
+                  {tripName}
+                </span>
+              )}
               {/* Desktop Navigation */}
               <div className="hidden md:ml-10 md:flex md:items-baseline md:space-x-4">
                 <Link

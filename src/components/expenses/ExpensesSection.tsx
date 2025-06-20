@@ -30,7 +30,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { LoadingSpinner } from "@/components/common/LoadingSpinner";
+import { LoadingSpinner, InlineSpinner } from "@/components/common/LoadingSpinner";
 import { ExpenseCard } from "./ExpenseCard";
 import { Plus, DollarSign, TrendingUp, TrendingDown } from "lucide-react";
 import { toast } from "sonner";
@@ -252,17 +252,26 @@ export function ExpensesSection({ tripId, tripMembers, currentUserRole }: Expens
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Your Balance</CardTitle>
             {user && balances.find(b => b.userId === user.id)?.balance && balances.find(b => b.userId === user.id)!.balance > 0 ? (
-              <TrendingUp className="h-4 w-4 text-green-600" />
+              <TrendingUp className="h-4 w-4 text-success" />
             ) : (
-              <TrendingDown className="h-4 w-4 text-red-600" />
+              <TrendingDown className="h-4 w-4 text-warning" />
             )}
           </CardHeader>
           <CardContent>
             {balancesLoading ? (
-              <div className="text-sm text-gray-500">Calculating...</div>
+              <div className="flex items-center gap-2">
+                <InlineSpinner size="sm" />
+                <div className="text-sm text-muted-foreground">Calculating...</div>
+              </div>
             ) : (
               <>
-                <div className="text-2xl font-bold">
+                <div className={`text-2xl font-bold ${
+                  user && balances.find(b => b.userId === user.id)?.balance 
+                    ? balances.find(b => b.userId === user.id)!.balance > 0
+                      ? 'text-success'
+                      : 'text-warning'
+                    : 'text-muted-foreground'
+                }`}>
                   {user ? formatCurrency(balances.find(b => b.userId === user.id)?.balance || 0) : "$0.00"}
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -484,6 +493,70 @@ export function ExpensesSection({ tripId, tripMembers, currentUserRole }: Expens
             </div>
           ) : (
             <div className="space-y-4">
+              {/* Expense Summary */}
+              {(() => {
+                const totalExpenses = expenses.reduce((sum, exp) => sum + exp.total_amount, 0);
+                const settledExpenses = expenses.filter(exp => {
+                  const participants = exp.participants || [];
+                  return participants.length > 0 && participants.every(p => p.is_settled);
+                });
+                const partiallySettled = expenses.filter(exp => {
+                  const participants = exp.participants || [];
+                  return participants.length > 0 && participants.some(p => p.is_settled) && !participants.every(p => p.is_settled);
+                });
+                const settlementRate = expenses.length > 0 ? (settledExpenses.length / expenses.length) * 100 : 0;
+                
+                return (
+                  <div className="bg-muted/20 rounded-lg p-4 space-y-3">
+                    <div className="flex justify-between items-center">
+                      <div className="text-sm text-muted-foreground">
+                        {expenses.length} expenses • {formatCurrency(totalExpenses)} total
+                      </div>
+                      <div className={`text-sm font-medium ${
+                        settlementRate === 100 ? 'text-success' :
+                        settlementRate > 0 ? 'text-warning' : 'text-destructive'
+                      }`}>
+                        {Math.round(settlementRate)}% settled
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Settlement Progress</span>
+                        <span>({settledExpenses.length}/{expenses.length})</span>
+                      </div>
+                      <div className="w-full bg-secondary rounded-full h-2">
+                        <div 
+                          className={`h-2 rounded-full transition-all duration-500 ${
+                            settlementRate === 100 ? 'bg-success' :
+                            settlementRate > 0 ? 'bg-warning' : 'bg-muted'
+                          }`}
+                          style={{ width: `${settlementRate}%` }}
+                        />
+                      </div>
+                      <div className="flex gap-4 text-xs">
+                        <div className="flex items-center gap-1">
+                          <div className="w-2 h-2 bg-success rounded-full"></div>
+                          <span className="text-success">{settledExpenses.length} fully settled</span>
+                        </div>
+                        {partiallySettled.length > 0 && (
+                          <div className="flex items-center gap-1">
+                            <div className="w-2 h-2 bg-warning rounded-full"></div>
+                            <span className="text-warning">{partiallySettled.length} partially settled</span>
+                          </div>
+                        )}
+                        {(expenses.length - settledExpenses.length - partiallySettled.length) > 0 && (
+                          <div className="flex items-center gap-1">
+                            <div className="w-2 h-2 bg-destructive rounded-full"></div>
+                            <span className="text-destructive">{expenses.length - settledExpenses.length - partiallySettled.length} unsettled</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+              
+              {/* Expense List */}
               {expenses.map((expense) => (
                 <ExpenseCard
                   key={expense.id}

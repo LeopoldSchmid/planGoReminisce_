@@ -65,11 +65,11 @@ export function AvailabilityDetailModal({
   const getStatusColor = (status: AvailabilityStatus) => {
     switch (status) {
       case 'unavailable':
-        return 'bg-red-100 border-red-300 text-red-800 hover:bg-red-200 dark:bg-red-900 dark:border-red-700 dark:text-red-200';
+        return 'bg-destructive/10 border-destructive/30 text-destructive hover:bg-destructive/20';
       case 'available':
-        return 'bg-green-100 border-green-300 text-green-800 hover:bg-green-200 dark:bg-green-900 dark:border-green-700 dark:text-green-200';
+        return 'bg-success/10 border-success/30 text-success hover:bg-success/20';
       default:
-        return 'bg-gray-100 border-gray-300 text-gray-800 hover:bg-gray-200 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200';
+        return 'bg-muted border-border text-muted-foreground hover:bg-muted/80';
     }
   };
 
@@ -96,7 +96,7 @@ export function AvailabilityDetailModal({
         <div className="space-y-6">
           {/* Selected dates */}
           <div>
-            <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            <div className="text-sm font-medium text-foreground">
               Selected Dates
             </div>
             <div className="mt-2">
@@ -108,7 +108,7 @@ export function AvailabilityDetailModal({
 
           {/* Availability status selection */}
           <div>
-            <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+            <div className="text-sm font-medium text-foreground mb-3">
               Availability Status
             </div>
             <div className="space-y-2">
@@ -119,12 +119,12 @@ export function AvailabilityDetailModal({
                   className={cn(
                     'w-full p-3 text-left border rounded-lg transition-all',
                     selectedStatus === option.value
-                      ? cn(getStatusColor(option.value), 'ring-2 ring-offset-2 ring-blue-500')
-                      : 'border-gray-300 hover:border-gray-400 dark:border-gray-600 dark:hover:border-gray-500'
+                      ? cn(getStatusColor(option.value), 'ring-2 ring-offset-2 ring-accent')
+                      : 'border-border hover:border-border/80'
                   )}
                 >
                   <div className="font-medium">{option.label}</div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                  <div className="text-sm text-muted-foreground mt-1">
                     {option.description}
                   </div>
                 </button>
@@ -139,7 +139,7 @@ export function AvailabilityDetailModal({
                 }}
                 className={cn(
                   'w-full p-3 text-left border rounded-lg transition-all',
-                  'border-gray-300 hover:border-gray-400 dark:border-gray-600 dark:hover:border-gray-500'
+                  'border-border hover:border-border/80'
                 )}
               >
                 <div className="font-medium">Ideal</div>

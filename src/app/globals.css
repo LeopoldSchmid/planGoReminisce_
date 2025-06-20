@@ -148,6 +148,61 @@ body {
   }
 }
 
+@keyframes slide-in-from-bottom {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-from-left {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-from-right {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-from-top {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes zoom-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 @keyframes pulse-gentle {
   0%, 100% {
     opacity: 1;
@@ -163,6 +218,59 @@ body {
   }
   50% {
     transform: translateY(-2px);
+  }
+}
+
+@keyframes morph-scale {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes spring-bounce {
+  0% {
+    transform: scale(1);
+  }
+  20% {
+    transform: scale(1.1);
+  }
+  40% {
+    transform: scale(0.95);
+  }
+  60% {
+    transform: scale(1.02);
+  }
+  80% {
+    transform: scale(0.98);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes surface-lift {
+  from {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transform: translateY(0);
+  }
+  to {
+    box-shadow: 0 8px 25px rgba(251, 146, 60, 0.15);
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(251, 146, 60, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(251, 146, 60, 0.6);
   }
 }
 
@@ -285,4 +393,181 @@ body {
 
 .text-white {
   color: hsl(0 0% 100%);
+}
+
+/* Spring and Morphing Animation Utilities */
+.ease-spring {
+  transition-timing-function: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.animate-spring {
+  animation: spring-bounce 0.6s ease-spring;
+}
+
+.animate-morph {
+  animation: morph-scale 0.3s ease-out;
+}
+
+.animate-surface-lift {
+  animation: surface-lift 0.3s ease-out forwards;
+}
+
+.animate-glow {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+/* Directional slide animations */
+.animate-in {
+  animation-fill-mode: forwards;
+}
+
+.slide-in-from-bottom-4 {
+  animation: slide-in-from-bottom 0.4s ease-out;
+}
+
+.slide-in-from-left-4 {
+  animation: slide-in-from-left 0.4s ease-out;
+}
+
+.slide-in-from-right-4 {
+  animation: slide-in-from-right 0.4s ease-out;
+}
+
+.slide-in-from-top-1 {
+  animation: slide-in-from-top 0.2s ease-out;
+}
+
+.zoom-in-50 {
+  animation: zoom-in 0.3s ease-out;
+}
+
+/* Animation delays for staggered effects */
+.animation-delay-100 { animation-delay: 100ms; }
+.animation-delay-150 { animation-delay: 150ms; }
+.animation-delay-200 { animation-delay: 200ms; }
+
+/* Interactive morphing effects */
+.morph-hover {
+  transition: all 0.3s ease-spring;
+}
+
+.morph-hover:hover {
+  transform: scale(1.02) translateY(-1px);
+  box-shadow: 0 8px 25px rgba(251, 146, 60, 0.15);
+}
+
+.morph-press {
+  transition: all 0.15s ease-spring;
+}
+
+.morph-press:active {
+  transform: scale(0.98);
+}
+
+.morph-focus:focus-visible {
+  transform: scale(1.02);
+  box-shadow: 0 0 0 3px rgba(251, 146, 60, 0.3);
+  outline: none;
+}
+
+/* Surface morphing for cards */
+.surface-morph {
+  transition: all 0.3s ease-spring;
+  transform-style: preserve-3d;
+}
+
+.surface-morph:hover {
+  transform: translateY(-4px) rotateX(2deg);
+  box-shadow: 
+    0 10px 40px rgba(0, 0, 0, 0.08),
+    0 2px 8px rgba(251, 146, 60, 0.1);
+}
+
+/* Floating action button with advanced morphing */
+.fab-morph {
+  transition: all 0.3s ease-spring;
+  transform-origin: center;
+}
+
+.fab-morph:hover {
+  transform: scale(1.1) rotate(90deg);
+  box-shadow: 
+    0 8px 25px rgba(251, 146, 60, 0.3),
+    0 0 30px rgba(251, 146, 60, 0.2);
+}
+
+.fab-morph:active {
+  transform: scale(0.95) rotate(90deg);
+}
+
+/* Touch-optimized morphing for mobile */
+@media (hover: none) and (pointer: coarse) {
+  .morph-hover:active {
+    transform: scale(0.98);
+  }
+  
+  .surface-morph:active {
+    transform: translateY(-2px);
+  }
+  
+  .fab-morph:active {
+    transform: scale(1.05) rotate(90deg);
+  }
+}
+
+/* Breathing effect for important elements */
+@keyframes breathe {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+}
+
+.animate-breathe {
+  animation: breathe 3s ease-in-out infinite;
+}
+
+/* Advanced spring physics */
+.spring-ultra {
+  transition-timing-function: cubic-bezier(0.68, -0.6, 0.32, 1.6);
+}
+
+.spring-gentle {
+  transition-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* GPU-accelerated transforms for performance */
+.transform-gpu {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* Organic morphing for important interactive elements */
+.organic-morph {
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-style: preserve-3d;
+}
+
+.organic-morph:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 
+    0 12px 40px rgba(0, 0, 0, 0.08),
+    0 4px 16px rgba(251, 146, 60, 0.12);
+}
+
+/* Micro-interaction for buttons */
+.btn-micro {
+  transition: all 0.2s ease-spring;
+}
+
+.btn-micro:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.btn-micro:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }

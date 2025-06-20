@@ -212,8 +212,40 @@ export function ShoppingListsSection({ tripId, tripMembers, currentUserRole }: S
               )}
             </div>
           ) : (
-            <div className="text-sm text-gray-600">
-              {lists.length} shopping {lists.length === 1 ? 'list' : 'lists'} for this trip
+            <div className="space-y-3">
+              <div className="text-sm text-muted-foreground">
+                {lists.length} shopping {lists.length === 1 ? 'list' : 'lists'} for this trip
+              </div>
+              {(() => {
+                const totalItems = lists.reduce((sum, list) => sum + list.items.length, 0);
+                const purchasedItems = lists.reduce((sum, list) => 
+                  sum + list.items.filter(item => item.is_purchased).length, 0
+                );
+                const completionRate = totalItems > 0 ? (purchasedItems / totalItems) * 100 : 0;
+                
+                return totalItems > 0 ? (
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Overall Progress</span>
+                      <span className={`font-medium ${
+                        completionRate === 100 ? 'text-success' :
+                        completionRate > 0 ? 'text-warning' : 'text-muted-foreground'
+                      }`}>
+                        {Math.round(completionRate)}% ({purchasedItems}/{totalItems} items)
+                      </span>
+                    </div>
+                    <div className="w-full bg-secondary rounded-full h-2">
+                      <div 
+                        className={`h-2 rounded-full transition-all duration-500 ${
+                          completionRate === 100 ? 'bg-success' :
+                          completionRate > 0 ? 'bg-warning' : 'bg-muted'
+                        }`}
+                        style={{ width: `${completionRate}%` }}
+                      />
+                    </div>
+                  </div>
+                ) : null;
+              })()}
             </div>
           )}
         </CardContent>
@@ -228,7 +260,7 @@ export function ShoppingListsSection({ tripId, tripMembers, currentUserRole }: S
                 variant="ghost"
                 size="sm"
                 onClick={() => handleDeleteList(list.id, list.name)}
-                className="text-red-500 hover:text-red-700 hover:bg-red-50 min-h-[32px] min-w-[32px] p-1"
+                className="text-destructive hover:text-destructive hover:bg-destructive/10 min-h-[32px] min-w-[32px] p-1"
               >
                 <Trash2 className="h-4 w-4" />
               </Button>

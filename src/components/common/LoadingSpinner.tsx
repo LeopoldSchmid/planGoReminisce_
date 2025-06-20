@@ -22,14 +22,14 @@ export function LoadingSpinner({
 
   const spinner = (
     <div className="text-center">
-      <div className={`animate-spin rounded-full border-b-2 border-blue-600 mx-auto ${sizeClasses[size]}`} />
-      <p className="mt-4 text-gray-600">{message}</p>
+      <div className={`animate-spin rounded-full border-b-2 border-accent mx-auto ${sizeClasses[size]}`} />
+      <p className="mt-4 text-muted-foreground">{message}</p>
     </div>
   );
 
   if (fullscreen) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-muted/20 flex items-center justify-center">
         {spinner}
       </div>
     );

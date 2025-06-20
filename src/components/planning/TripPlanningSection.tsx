@@ -31,6 +31,7 @@ import { DestinationProposalCard } from './DestinationProposalCard';
 import { CreateDateProposalForm } from './CreateDateProposalForm';
 import { CreateDestinationProposalForm } from './CreateDestinationProposalForm';
 import { ProposalDiscussion } from './ProposalDiscussion';
+import { EnhancedAvailabilityView } from './EnhancedAvailabilityView';
 
 // Services
 import {
@@ -55,13 +56,37 @@ interface TripPlanningSectionProps {
   tripId: string;
   currentUserId: string;
   currentUserRole?: string;
+  tripName?: string;
   className?: string;
+}
+
+interface DateRange {
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  comment?: string;
+  createdBy: string;
+  createdByName: string;
+  votes: {
+    available: number;
+    canWork: number;
+    total: number;
+  };
+  discussions: Array<{
+    id: string;
+    user: string;
+    userName: string;
+    message: string;
+    timestamp: string;
+  }>;
 }
 
 export function TripPlanningSection({
   tripId,
   currentUserId,
   currentUserRole,
+  tripName = "Trip Planning",
   className
 }: TripPlanningSectionProps) {
   const queryClient = useQueryClient();
@@ -75,6 +100,7 @@ export function TripPlanningSection({
     id: string;
     title: string;
   } | null>(null);
+  const [useEnhancedView, setUseEnhancedView] = useState(true); // Toggle for new UX
 
   const canCreateProposals = currentUserRole !== undefined; // Any trip member can create proposals
   const canFinalize = currentUserRole === 'owner' || currentUserRole === 'co-owner';
@@ -245,6 +271,58 @@ export function TripPlanningSection({
     });
   };
 
+  // Transform date proposals to date ranges format
+  const transformToDateRanges = (): DateRange[] => {
+    if (!dateProposalsData?.proposals) return [];
+    
+    return dateProposalsData.proposals.map(proposal => ({
+      id: proposal.id,
+      name: proposal.title,
+      startDate: proposal.start_date,
+      endDate: proposal.end_date,
+      comment: proposal.notes,
+      createdBy: proposal.created_by,
+      createdByName: proposal.creator_name || 'Unknown',
+      votes: {
+        available: proposal.vote_counts?.yes || 0,
+        canWork: proposal.vote_counts?.maybe || 0,
+        total: (proposal.vote_counts?.yes || 0) + (proposal.vote_counts?.maybe || 0) + (proposal.vote_counts?.no || 0)
+      },
+      discussions: discussionData?.discussions?.map(discussion => ({
+        id: discussion.id,
+        user: discussion.user_id,
+        userName: discussion.username || 'Anonymous',
+        message: discussion.comment_text,
+        timestamp: new Date(discussion.created_at).toLocaleString()
+      })) || []
+    }));
+  };
+
+  const handleCreateDateRange = async (range: { name: string; startDate: string; endDate: string; comment?: string }) => {
+    try {
+      await createDateProposalMutation.mutateAsync({
+        title: range.name,
+        start_date: range.startDate,
+        end_date: range.endDate,
+        notes: range.comment
+      });
+    } catch (error) {
+      console.error('Failed to create date range:', error);
+    }
+  };
+
+  const handleDiscussionUpdate = async (rangeId: string, message: string) => {
+    try {
+      await createCommentMutation.mutateAsync({
+        text: message,
+        proposalType: 'date',
+        proposalId: rangeId
+      });
+    } catch (error) {
+      console.error('Failed to add discussion:', error);
+    }
+  };
+
   // Initialize user availability in calendar
   React.useEffect(() => {
     if (userAvailability?.availability) {
@@ -258,38 +336,62 @@ export function TripPlanningSection({
 
   return (
     <div className={className}>
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-6 w-6" />
-            Trip Planning & Availability
-          </CardTitle>
-        </CardHeader>
+      {useEnhancedView ? (
+        // New Enhanced Mobile-First UX
+        <EnhancedAvailabilityView
+          tripName={tripName}
+          selectedDates={selectedDates}
+          onDatesChange={setSelectedDates}
+          dateRanges={transformToDateRanges()}
+          onCreateDateRange={handleCreateDateRange}
+          onDiscussionUpdate={handleDiscussionUpdate}
+          currentUserId={currentUserId}
+          currentUserName="Current User" // TODO: Get from user profile
+        />
+      ) : (
+        // Original Desktop View
+        <div>
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-6 w-6" />
+                  Trip Planning & Availability
+                </CardTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setUseEnhancedView(true)}
+                >
+                  Switch to Mobile View
+                </Button>
+              </div>
+            </CardHeader>
 
-        <CardContent>
-          <Tabs defaultValue="availability" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="availability">
-                <Users className="h-4 w-4 mr-2" />
-                Availability
-              </TabsTrigger>
-              <TabsTrigger value="dates">
-                <Calendar className="h-4 w-4 mr-2" />
-                Date Proposals
-              </TabsTrigger>
-              <TabsTrigger value="destinations">
-                <MapPin className="h-4 w-4 mr-2" />
-                Destinations
-              </TabsTrigger>
-              <TabsTrigger value="overview">
-                <TrendingUp className="h-4 w-4 mr-2" />
-                Overview
-              </TabsTrigger>
-            </TabsList>
+            <CardContent>
+              <Tabs defaultValue="availability" className="space-y-6">
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="availability">
+                    <Users className="h-4 w-4 mr-2" />
+                    Availability
+                  </TabsTrigger>
+                  <TabsTrigger value="dates">
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Date Proposals
+                  </TabsTrigger>
+                  <TabsTrigger value="destinations">
+                    <MapPin className="h-4 w-4 mr-2" />
+                    Destinations
+                  </TabsTrigger>
+                  <TabsTrigger value="overview">
+                    <TrendingUp className="h-4 w-4 mr-2" />
+                    Overview
+                  </TabsTrigger>
+                </TabsList>
 
-            {/* Availability Tab */}
-            <TabsContent value="availability" className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Availability Tab */}
+                <TabsContent value="availability" className="space-y-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Personal Availability Calendar */}
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
@@ -500,33 +602,48 @@ export function TripPlanningSection({
                 )}
               </div>
             </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+              </Tabs>
+            </CardContent>
+          </Card>
 
-      {/* Discussion Dialog */}
-      {selectedDiscussionProposal && (
-        <Dialog 
-          open={!!selectedDiscussionProposal} 
-          onOpenChange={() => setSelectedDiscussionProposal(null)}
-        >
-          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <MessageSquare className="h-5 w-5" />
-                Discussion: {selectedDiscussionProposal.title}
-              </DialogTitle>
-            </DialogHeader>
-            
-            <ProposalDiscussion
-              discussions={discussionData?.discussions || []}
-              currentUserId={currentUserId}
-              onAddComment={handleCreateComment}
-              placeholder={`Share your thoughts about this ${selectedDiscussionProposal.type} proposal...`}
-              className="border-0 shadow-none"
-            />
-          </DialogContent>
-        </Dialog>
+          {/* Discussion Dialog */}
+          {selectedDiscussionProposal && (
+            <Dialog 
+              open={!!selectedDiscussionProposal} 
+              onOpenChange={() => setSelectedDiscussionProposal(null)}
+            >
+              <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5" />
+                    Discussion: {selectedDiscussionProposal.title}
+                  </DialogTitle>
+                </DialogHeader>
+                
+                <ProposalDiscussion
+                  discussions={discussionData?.discussions || []}
+                  currentUserId={currentUserId}
+                  onAddComment={handleCreateComment}
+                  placeholder={`Share your thoughts about this ${selectedDiscussionProposal.type} proposal...`}
+                  className="border-0 shadow-none"
+                />
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
+      )}
+      
+      {/* Switch View Button for Enhanced View */}
+      {useEnhancedView && (
+        <div className="mt-4 text-center">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setUseEnhancedView(false)}
+          >
+            Switch to Desktop View
+          </Button>
+        </div>
       )}
     </div>
   );

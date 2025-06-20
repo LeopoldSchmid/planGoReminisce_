@@ -197,7 +197,17 @@ export function ExpenseCard({ expense, tripMembers, canEdit, onDelete }: Expense
             <Receipt className="h-5 w-5 text-gray-500" />
             <CardTitle className="text-lg">{expense.name}</CardTitle>
             {expense.category && (
-              <Badge variant="outline" className="text-xs">
+              <Badge 
+                variant="outline" 
+                className={`text-xs ${
+                  expense.category.toLowerCase().includes('food') || expense.category.toLowerCase().includes('dining') ? 'bg-orange-50 text-orange-700 border-orange-200' :
+                  expense.category.toLowerCase().includes('accommodation') || expense.category.toLowerCase().includes('hotel') ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                  expense.category.toLowerCase().includes('transport') || expense.category.toLowerCase().includes('travel') ? 'bg-green-50 text-green-700 border-green-200' :
+                  expense.category.toLowerCase().includes('entertainment') || expense.category.toLowerCase().includes('activity') ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                  expense.category.toLowerCase().includes('shopping') ? 'bg-pink-50 text-pink-700 border-pink-200' :
+                  'bg-gray-50 text-gray-700 border-gray-200'
+                }`}
+              >
                 {expense.category}
               </Badge>
             )}
@@ -331,13 +341,25 @@ export function ExpenseCard({ expense, tripMembers, canEdit, onDelete }: Expense
               <h4 className="font-medium text-sm">
                 Participants ({settledCount}/{participants.length} settled)
               </h4>
-              <Badge variant={settledCount === participants.length ? "default" : "secondary"}>
+              <Badge 
+                className={`${
+                  settledCount === participants.length 
+                    ? 'bg-success/10 text-success border-success/20' 
+                    : settledCount > 0 
+                    ? 'bg-warning/10 text-warning border-warning/20' 
+                    : 'bg-destructive/10 text-destructive border-destructive/20'
+                }`}
+              >
                 {formatCurrency(totalOwed)} total owed
               </Badge>
             </div>
             <div className="space-y-2">
               {participants.map((participant) => (
-                <div key={participant.id} className="flex items-center justify-between p-2 border rounded-lg">
+                <div key={participant.id} className={`flex items-center justify-between p-2 border rounded-lg transition-colors ${
+                  participant.is_settled 
+                    ? 'bg-success/5 border-success/20' 
+                    : 'bg-background border-border hover:border-warning/30'
+                }`}>
                   <div className="flex items-center gap-3">
                     <Checkbox
                       checked={participant.is_settled}
@@ -345,24 +367,34 @@ export function ExpenseCard({ expense, tripMembers, canEdit, onDelete }: Expense
                       disabled={!canEdit}
                     />
                     <div>
-                      <span className={`font-medium ${participant.is_settled ? 'line-through text-gray-500' : ''}`}>
+                      <span className={`font-medium ${participant.is_settled ? 'line-through text-muted-foreground' : ''}`}>
                         {getUserName(participant.user_id)}
                       </span>
-                      <div className="text-sm text-gray-600">
-                        Owes {formatCurrency(participant.amount_owed, expense.currency)}
+                      <div className="text-sm text-muted-foreground">
+                        Owes <span className={`font-medium ${
+                          participant.is_settled ? 'text-success' : 'text-warning'
+                        }`}>
+                          {formatCurrency(participant.amount_owed, expense.currency)}
+                        </span>
                         {participant.is_settled && participant.settled_at && (
-                          <span className="text-green-600 ml-2">
+                          <span className="text-success ml-2">
                             • Settled {new Date(participant.settled_at).toLocaleDateString()}
                           </span>
                         )}
                       </div>
                     </div>
                   </div>
-                  {participant.is_settled ? (
-                    <Check className="h-4 w-4 text-green-600" />
-                  ) : (
-                    <X className="h-4 w-4 text-red-500" />
-                  )}
+                  <div className={`flex items-center justify-center w-6 h-6 rounded-full ${
+                    participant.is_settled 
+                      ? 'bg-success/20' 
+                      : 'bg-warning/20'
+                  }`}>
+                    {participant.is_settled ? (
+                      <Check className="h-4 w-4 text-success" />
+                    ) : (
+                      <X className="h-4 w-4 text-warning" />
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

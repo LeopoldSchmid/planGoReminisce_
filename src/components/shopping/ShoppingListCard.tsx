@@ -172,8 +172,30 @@ export function ShoppingListCard({ list, tripMembers, canEdit }: ShoppingListCar
           {list.description && (
             <CardDescription>{list.description}</CardDescription>
           )}
-          <div className="text-sm text-gray-500 mt-1">
-            {items.length} items • {purchasedItems.length} purchased
+          <div className="space-y-2 mt-2">
+            <div className="text-sm text-muted-foreground">
+              {items.length} items • {purchasedItems.length} purchased
+            </div>
+            {items.length > 0 && (
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Progress</span>
+                  <span>{Math.round((purchasedItems.length / items.length) * 100)}%</span>
+                </div>
+                <div className="w-full bg-secondary rounded-full h-2">
+                  <div 
+                    className={`h-2 rounded-full transition-all duration-300 ${
+                      purchasedItems.length === items.length 
+                        ? 'bg-success' 
+                        : purchasedItems.length > 0 
+                        ? 'bg-warning' 
+                        : 'bg-muted'
+                    }`}
+                    style={{ width: `${(purchasedItems.length / items.length) * 100}%` }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
         {canEdit && (
@@ -276,7 +298,8 @@ export function ShoppingListCard({ list, tripMembers, canEdit }: ShoppingListCar
             {/* Unpurchased Items */}
             {unpurchasedItems.length > 0 && (
               <div>
-                <h4 className="font-medium text-sm text-gray-700 mb-2">
+                <h4 className="font-medium text-sm text-warning mb-2 flex items-center gap-2">
+                  <div className="w-2 h-2 bg-warning rounded-full"></div>
                   To Buy ({unpurchasedItems.length})
                 </h4>
                 <div className="space-y-2">
@@ -296,7 +319,8 @@ export function ShoppingListCard({ list, tripMembers, canEdit }: ShoppingListCar
             {/* Purchased Items */}
             {purchasedItems.length > 0 && (
               <div>
-                <h4 className="font-medium text-sm text-gray-700 mb-2">
+                <h4 className="font-medium text-sm text-success mb-2 flex items-center gap-2">
+                  <div className="w-2 h-2 bg-success rounded-full"></div>
                   Purchased ({purchasedItems.length})
                 </h4>
                 <div className="space-y-2">
@@ -328,7 +352,11 @@ interface ShoppingListItemProps {
 
 function ShoppingListItem({ item, canEdit, onTogglePurchased, onDelete }: ShoppingListItemProps) {
   return (
-    <div className={`flex items-center justify-between p-3 border rounded-lg ${item.is_purchased ? 'bg-gray-50 opacity-75' : 'bg-white'}`}>
+    <div className={`flex items-center justify-between p-3 border rounded-lg transition-all duration-200 ${
+      item.is_purchased 
+        ? 'bg-success/5 opacity-75 border-success/20' 
+        : 'bg-background border-border hover:border-border/80'
+    }`}>
       <div className="flex items-center space-x-3 flex-1">
         <Checkbox
           checked={item.is_purchased}
@@ -337,7 +365,7 @@ function ShoppingListItem({ item, canEdit, onTogglePurchased, onDelete }: Shoppi
         />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className={`font-medium ${item.is_purchased ? 'line-through text-gray-500' : ''}`}>
+            <span className={`font-medium ${item.is_purchased ? 'line-through text-muted-foreground' : ''}`}>
               {item.name}
             </span>
             {item.quantity && item.quantity !== 1 && (
@@ -346,7 +374,15 @@ function ShoppingListItem({ item, canEdit, onTogglePurchased, onDelete }: Shoppi
               </Badge>
             )}
             {item.category && (
-              <Badge variant="outline" className="text-xs">
+              <Badge 
+                variant="outline" 
+                className={`text-xs ${
+                  item.category.toLowerCase().includes('food') ? 'border-success/50 text-success' :
+                  item.category.toLowerCase().includes('gear') ? 'border-info/50 text-info' :
+                  item.category.toLowerCase().includes('transport') ? 'border-warning/50 text-warning' :
+                  'border-muted-foreground/50 text-muted-foreground'
+                }`}
+              >
                 {item.category}
               </Badge>
             )}
@@ -354,17 +390,23 @@ function ShoppingListItem({ item, canEdit, onTogglePurchased, onDelete }: Shoppi
           {item.notes && (
             <p className="text-sm text-gray-600 mt-1">{item.notes}</p>
           )}
-          <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-            {item.assigned_to_profile && (
-              <div className="flex items-center gap-1">
+          <div className="flex items-center gap-4 mt-2 text-xs">
+            {item.assigned_to_profile ? (
+              <div className="flex items-center gap-1 text-info">
+                <div className="w-1.5 h-1.5 bg-info rounded-full"></div>
                 <span>Assigned to:</span>
                 <span className="font-medium">
                   {item.assigned_to_profile.username || item.assigned_to_profile.full_name}
                 </span>
               </div>
+            ) : (
+              <div className="flex items-center gap-1 text-muted-foreground">
+                <div className="w-1.5 h-1.5 bg-muted-foreground rounded-full"></div>
+                <span>Unassigned</span>
+              </div>
             )}
             {item.is_purchased && item.purchased_by_profile && (
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 text-success">
                 <Check className="h-3 w-3" />
                 <span>Bought by:</span>
                 <span className="font-medium">

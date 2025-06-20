@@ -65,7 +65,7 @@ const SheetContent = React.forwardRef<
       {...props}
     >
       {children}
-      <SheetPrimitive.Close className="absolute right-4 top-4 rounded-full p-2 opacity-70 transition-all hover:opacity-100 hover:bg-muted focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none disabled:pointer-events-none data-[state=open]:bg-secondary [&_svg]:size-4">
+      <SheetPrimitive.Close className="absolute right-4 top-4 rounded-full p-2 opacity-70 transition-all hover:opacity-100 hover:bg-accent/10 hover:text-accent focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:outline-none disabled:pointer-events-none data-[state=open]:bg-accent/10 [&_svg]:size-4">
         <XIcon />
         <span className="sr-only">Close</span>
       </SheetPrimitive.Close>

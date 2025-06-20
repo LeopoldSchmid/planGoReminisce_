@@ -6,6 +6,7 @@ import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { InlineSpinner } from '@/components/common/LoadingSpinner';
 
 // Base form data type
 // Base form type with all possible fields
@@ -74,7 +75,7 @@ export function AuthForm({ type, schema, onSubmit, loading, error }: AuthFormPro
                 {...register('email' as const)}
               />
               {errors.email && (
-                <p className="text-sm text-red-500">{errors.email.message}</p>
+                <p className="text-sm text-destructive">{errors.email.message}</p>
               )}
             </div>
 
@@ -90,7 +91,7 @@ export function AuthForm({ type, schema, onSubmit, loading, error }: AuthFormPro
                   {...register('username' as const)}
                 />
                 {errors.username && (
-                  <p className="text-sm text-red-500">{errors.username.message}</p>
+                  <p className="text-sm text-destructive">{errors.username.message}</p>
                 )}
               </div>
             )}
@@ -116,7 +117,7 @@ export function AuthForm({ type, schema, onSubmit, loading, error }: AuthFormPro
                 {...register('password' as const)}
               />
               {errors.password && (
-                <p className="text-sm text-red-500">{errors.password.message}</p>
+                <p className="text-sm text-destructive">{errors.password.message}</p>
               )}
             </div>
 
@@ -132,7 +133,7 @@ export function AuthForm({ type, schema, onSubmit, loading, error }: AuthFormPro
                   {...register('confirmPassword' as const)}
                 />
                 {errors.confirmPassword && (
-                  <p className="text-sm text-red-500">
+                  <p className="text-sm text-destructive">
                     {errors.confirmPassword.message}
                   </p>
                 )}
@@ -140,7 +141,7 @@ export function AuthForm({ type, schema, onSubmit, loading, error }: AuthFormPro
             )}
 
             {error && (
-              <div className="rounded-md bg-red-50 p-4 text-sm text-red-600">
+              <div className="rounded-md bg-destructive/10 p-4 text-sm text-destructive">
                 {error}
               </div>
             )}
@@ -148,27 +149,8 @@ export function AuthForm({ type, schema, onSubmit, loading, error }: AuthFormPro
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? (
                 <span className="flex items-center">
-                  <svg
-                    className="-ml-1 mr-2 h-4 w-4 animate-spin text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    />
-                  </svg>
-                  Processing...
+                  <InlineSpinner size="sm" />
+                  <span className="ml-2">Processing...</span>
                 </span>
               ) : type === 'login' ? (
                 'Sign In'

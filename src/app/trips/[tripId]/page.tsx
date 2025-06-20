@@ -31,8 +31,7 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@/components/ui/avatar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { UserPlus, LinkIcon, Trash2, MapPin, Camera, PlaneTakeoff } from 'lucide-react';
+import { UserPlus, LinkIcon, Trash2, Settings } from 'lucide-react';
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { ShoppingListsSection } from "@/components/shopping/ShoppingListsSection";
@@ -42,6 +41,12 @@ import { RetroactiveExpenseManager } from "@/components/expenses/RetroactiveExpe
 import { RecipesSection } from "@/components/recipes/RecipesSection";
 import { TripPlanningSection } from "@/components/planning/TripPlanningSection";
 
+// New mobile-first components
+import { TripPhaseNavigation } from "@/components/navigation/TripPhaseNavigation";
+import { PlanPhase } from "@/components/phases/PlanPhase";
+import { GoPhase } from "@/components/phases/GoPhase";
+import { ReminiscePhase } from "@/components/phases/ReminiscePhase";
+
 function TripDetailPageContent() {
   const router = useRouter();
   const params = useParams();
@@ -49,7 +54,9 @@ function TripDetailPageContent() {
   const tripId = params?.tripId as string;
   const { user } = useAuth();
   const [isInviteLinkDialogOpen, setIsInviteLinkDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("plan");
+  const [activePhase, setActivePhase] = useState<'plan' | 'go' | 'reminisce'>('plan');
+  const [activeSection, setActiveSection] = useState<string | null>(null);
+  const [showMemberManagement, setShowMemberManagement] = useState(false);
   const [generatedLink, setGeneratedLink] = useState<string>("");
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -98,9 +105,9 @@ function TripDetailPageContent() {
     },
   });
 
-  // Set default tab based on trip status when trip data loads
+  // Set default phase based on trip status when trip data loads
   React.useEffect(() => {
-    if (tripData?.trip && activeTab === "plan") {
+    if (tripData?.trip && activePhase === "plan") {
       const getTripStatus = (trip: { start_date?: string; end_date?: string }) => {
         if (!trip?.start_date || !trip?.end_date) return "planning";
         
@@ -114,10 +121,10 @@ function TripDetailPageContent() {
       };
       
       const tripStatus = getTripStatus(tripData.trip);
-      const defaultTab = tripStatus === "active" ? "go" : tripStatus === "complete" ? "reminisce" : "plan";
-      setActiveTab(defaultTab);
+      const defaultPhase = tripStatus === "active" ? "go" : tripStatus === "complete" ? "reminisce" : "plan";
+      setActivePhase(defaultPhase);
     }
-  }, [tripData, activeTab]);
+  }, [tripData, activePhase]);
 
   if (isLoadingTrip || isLoadingMembers) {
     return <LoadingSpinner message="Loading trip details..." />;
@@ -187,126 +194,256 @@ function TripDetailPageContent() {
     setIsDeleteDialogOpen(false);
   };
 
+  const handleSectionNavigation = (section: string) => {
+    setActiveSection(section);
+  };
+
+  const handlePhaseChange = (phase: 'plan' | 'go' | 'reminisce') => {
+    setActivePhase(phase);
+    setActiveSection(null); // Reset section when changing phases
+  };
+
+  const renderPhaseContent = () => {
+    // If a specific section is active, render it
+    if (activeSection) {
+      switch (activeSection) {
+        case 'planning':
+          return (
+            <TripPlanningSection
+              tripId={trip.id}
+              currentUserId={user?.id || ''}
+              currentUserRole={currentUserMemberInfo?.role}
+              tripName={trip.name}
+            />
+          );
+        case 'recipes':
+          return (
+            <RecipesSection 
+              tripId={trip.id}
+              tripMembers={members.map(member => ({
+                user_id: member.user_id,
+                username: member.username,
+                full_name: member.full_name,
+              }))}
+              currentUserRole={currentUserMemberInfo?.role}
+            />
+          );
+        case 'shopping':
+          return (
+            <>
+              <ShoppingListsSection 
+                tripId={trip.id}
+                tripMembers={members.map(member => ({
+                  user_id: member.user_id,
+                  username: member.username,
+                  full_name: member.full_name,
+                  avatar_url: member.avatar_url,
+                  role: member.role
+                }))}
+                currentUserRole={currentUserMemberInfo?.role}
+              />
+              <AggregatedShoppingView 
+                tripId={trip.id}
+                tripMembers={members.map(member => ({
+                  user_id: member.user_id,
+                  username: member.username,
+                  full_name: member.full_name,
+                }))}
+              />
+            </>
+          );
+        case 'expenses':
+          return (
+            <ExpensesSection 
+              tripId={trip.id}
+              tripMembers={members.map(member => ({
+                user_id: member.user_id,
+                username: member.username,
+                full_name: member.full_name,
+                role: member.role
+              }))}
+              currentUserRole={currentUserMemberInfo?.role}
+            />
+          );
+        default:
+          return null;
+      }
+    }
+
+    // Render phase landing pages
+    switch (activePhase) {
+      case 'plan':
+        return (
+          <PlanPhase
+            tripId={trip.id}
+            tripName={trip.name}
+            tripMembers={members.map(member => ({
+              user_id: member.user_id,
+              username: member.username,
+              full_name: member.full_name,
+              avatar_url: member.avatar_url,
+            }))}
+            onNavigateToSection={handleSectionNavigation}
+          />
+        );
+      case 'go':
+        return (
+          <GoPhase
+            tripId={trip.id}
+            tripName={trip.name}
+            tripMembers={members.map(member => ({
+              user_id: member.user_id,
+              username: member.username,
+              full_name: member.full_name,
+              avatar_url: member.avatar_url,
+            }))}
+            onNavigateToSection={handleSectionNavigation}
+          />
+        );
+      case 'reminisce':
+        return (
+          <ReminiscePhase
+            tripId={trip.id}
+            tripName={trip.name}
+            tripMembers={members.map(member => ({
+              user_id: member.user_id,
+              username: member.username,
+              full_name: member.full_name,
+              avatar_url: member.avatar_url,
+            }))}
+            onNavigateToSection={handleSectionNavigation}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
-    <div className="container mx-auto p-4 space-y-6 page-transition">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
-        <div className="flex-1">
-          <h1 className="text-2xl sm:text-3xl font-bold mb-2">{trip.name}</h1>
-          <p className="text-muted-foreground mb-2">{trip.description || "No description provided."}</p>
-          <p className="text-sm text-muted-foreground mb-3">
-            Dates: {trip.start_date && trip.end_date ? `${new Date(trip.start_date).toLocaleDateString()} to ${new Date(trip.end_date).toLocaleDateString()}` : "To Be Decided"}
-          </p>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-2 sm:space-x-2">
-          {canDelete && (
-            <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="w-full sm:w-auto min-h-[44px] bg-destructive-brand hover:bg-destructive-brand text-white font-medium">
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete Trip
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Delete Trip</DialogTitle>
-                  <DialogDescription>
-                    Are you sure you want to delete this trip? This action cannot be undone and will remove all trip data including members, shopping lists, and expenses.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="flex justify-end space-x-2 mt-4">
-                  <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button 
-                    variant="destructive" 
-                    onClick={handleDeleteTrip}
-                    disabled={deleteMutation.isPending}
-                  >
-                    {deleteMutation.isPending ? "Deleting..." : "Delete Trip"}
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
-          )}
-          <Button onClick={() => router.push("/trips")} variant="outline" className="w-full sm:w-auto min-h-[44px]">Back to My Trips</Button>
+    <div className="min-h-screen bg-gray-50 relative">
+      {/* Header with trip info and settings */}
+      <div className="bg-white border-b border-gray-100 sticky top-0 z-40">
+        <div className="px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-orange-400 to-pink-400 rounded-xl flex items-center justify-center">
+                <span className="text-white font-bold text-lg">
+                  {trip.name.charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <div>
+                <h1 className="font-semibold text-gray-900 text-lg truncate max-w-[200px]">
+                  {trip.name}
+                </h1>
+                <p className="text-xs text-gray-500">
+                  {members.length} member{members.length !== 1 ? 's' : ''}
+                </p>
+              </div>
+            </div>
+            
+            {/* Settings/Member Management */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowMemberManagement(true)}
+              className="p-2"
+            >
+              <Settings className="w-5 h-5 text-gray-600" />
+            </Button>
+          </div>
         </div>
       </div>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Members</CardTitle>
-            <CardDescription>Users participating in this trip.</CardDescription>
+      {/* Main Content */}
+      <div className="pb-32">
+        {activeSection && (
+          <div className="bg-white border-b border-gray-100 px-4 py-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setActiveSection(null)}
+              className="text-orange-600 h-8 px-0"
+            >
+              ← Back to {activePhase === 'plan' ? 'Planning' : activePhase === 'go' ? 'Live Trip' : 'Memories'}
+            </Button>
           </div>
-          {canInvite && (
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button variant="outline" className="min-h-[44px]">
-                    <UserPlus className="mr-2 h-4 w-4" /> Invite Member
-                  </Button>
-                </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                  <DialogTitle>Invite New Member</DialogTitle>
-                  <DialogDescription>
-                    Enter the email address of the user you want to invite to this trip.
-                  </DialogDescription>
-                </DialogHeader>
-                <InviteMemberForm tripId={trip.id} />
-              </DialogContent>
-            </Dialog>
+        )}
+        {renderPhaseContent()}
+      </div>
 
-              <Button 
-                onClick={handleGenerateInviteLink} 
-                variant="outline" 
-                className="min-h-[44px]"
-                disabled={isGeneratingLink}
-              >
-                <LinkIcon className="mr-2 h-4 w-4" /> 
-                {isGeneratingLink ? "Generating..." : "Create Invite Link"}
-              </Button>
+      {/* Bottom Navigation - Fixed */}
+      <div className="fixed bottom-0 left-0 right-0 z-50">
+        <TripPhaseNavigation
+          activePhase={activePhase}
+          onPhaseChange={handlePhaseChange}
+          tripStatus={tripStatus}
+        />
+      </div>
 
-              {/* Dialog to display the generated invite link */}
-              <Dialog open={isInviteLinkDialogOpen} onOpenChange={setIsInviteLinkDialogOpen}>
-              <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                  <DialogTitle>Share this Invite Link</DialogTitle>
-                  <DialogDescription>
-                    Anyone with this link can join your trip. The link is valid for 7 days.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="flex items-center space-x-2 mt-4">
-                  <Input value={generatedLink} readOnly className="flex-1" />
-                  <Button onClick={handleCopyLink} variant="secondary">
-                    Copy
+      {/* Member Management Modal */}
+      <Dialog open={showMemberManagement} onOpenChange={setShowMemberManagement}>
+        <DialogContent className="sm:max-w-[500px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Trip Members</DialogTitle>
+            <DialogDescription>
+              Manage who's part of this trip adventure.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Invite Section */}
+            {canInvite && (
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="flex-1">
+                        <UserPlus className="mr-2 h-4 w-4" /> Invite by Email
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[425px]">
+                      <DialogHeader>
+                        <DialogTitle>Invite New Member</DialogTitle>
+                        <DialogDescription>
+                          Enter the email address of the user you want to invite to this trip.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <InviteMemberForm tripId={trip.id} />
+                    </DialogContent>
+                  </Dialog>
+
+                  <Button 
+                    onClick={handleGenerateInviteLink} 
+                    variant="outline" 
+                    className="flex-1"
+                    disabled={isGeneratingLink}
+                  >
+                    <LinkIcon className="mr-2 h-4 w-4" /> 
+                    {isGeneratingLink ? "Creating..." : "Share Link"}
                   </Button>
                 </div>
-                 <Button onClick={() => setIsInviteLinkDialogOpen(false)} variant="outline" className="mt-4 w-full">
-                    Close
-                  </Button>
-              </DialogContent>
-              </Dialog>
-            </div>
-          )}
-        </CardHeader>
-        <CardContent>
-          {members.length > 0 ? (
-            <div className="space-y-4">
-              <ul className="space-y-3">
-                {members.map((member: TripMemberWithProfile) => (
-                  <li key={member.user_id} className="flex items-center justify-between p-2 border rounded-md">
-                    <div className="flex items-center space-x-3">
-                      <Avatar>
-                        <AvatarImage src={member.avatar_url || undefined} alt={member.username || 'User Avatar'} />
-                        <AvatarFallback>{member.username ? member.username.substring(0, 2).toUpperCase() : 'U'}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium">{member.username || 'Unnamed User'}</p>
-                        <p className="text-xs text-gray-500">Role: {member.role}</p>
+              </div>
+            )}
+
+            {/* Members List */}
+            <div className="space-y-3">
+              <h4 className="font-medium text-sm text-gray-900">Current Members</h4>
+              {members.length > 0 ? (
+                <div className="space-y-2">
+                  {members.map((member: TripMemberWithProfile) => (
+                    <div key={member.user_id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <Avatar className="w-8 h-8">
+                          <AvatarImage src={member.avatar_url || undefined} alt={member.username || 'User Avatar'} />
+                          <AvatarFallback className="bg-gradient-to-br from-orange-400 to-pink-400 text-white text-xs">
+                            {member.username ? member.username.substring(0, 2).toUpperCase() : 'U'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium text-sm">{member.username || 'Unnamed User'}</p>
+                          <p className="text-xs text-gray-500 capitalize">{member.role}</p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2">
                       {canInvite && expensesData?.expenses && expensesData.expenses.length > 0 && (
                         <RetroactiveExpenseManager
                           expenses={expensesData.expenses}
@@ -323,185 +460,70 @@ function TripDetailPageContent() {
                         />
                       )}
                     </div>
-                  </li>
-                ))}
-              </ul>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 text-sm text-center py-4">No members yet. Invite someone to join!</p>
+              )}
             </div>
-          ) : (
-            <p className="text-gray-500">No members yet. Invite someone to join!</p>
-          )}
-        </CardContent>
-      </Card>
-
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-8">
-          <TabsTrigger value="plan" className="flex items-center gap-2 relative">
-            <MapPin className="h-4 w-4" />
-            Plan
-            {tripStatus === "planning" && (
-              <div className="absolute -top-1 -right-1 w-2 h-2 bg-planning rounded-full"></div>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="go" className="flex items-center gap-2 relative">
-            <PlaneTakeoff className="h-4 w-4" />
-            Go
-            {tripStatus === "active" && (
-              <div className="absolute -top-1 -right-1 w-2 h-2 bg-active rounded-full animate-pulse"></div>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="reminisce" className="flex items-center gap-2 relative">
-            <Camera className="h-4 w-4" />
-            Reminisce
-            {tripStatus === "complete" && (
-              <div className="absolute -top-1 -right-1 w-2 h-2 bg-complete rounded-full"></div>
-            )}
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="plan" className="space-y-6">
-          <TripPlanningSection
-            tripId={trip.id}
-            currentUserId={user?.id || ''}
-            currentUserRole={currentUserMemberInfo?.role}
-          />
-
-          <RecipesSection 
-            tripId={trip.id}
-            tripMembers={members.map(member => ({
-              user_id: member.user_id,
-              username: member.username,
-              full_name: member.full_name,
-            }))}
-            currentUserRole={currentUserMemberInfo?.role}
-          />
-
-          <ShoppingListsSection 
-            tripId={trip.id}
-            tripMembers={members.map(member => ({
-              user_id: member.user_id,
-              username: member.username,
-              full_name: member.full_name,
-              avatar_url: member.avatar_url,
-              role: member.role
-            }))}
-            currentUserRole={currentUserMemberInfo?.role}
-          />
-
-          <AggregatedShoppingView 
-            tripId={trip.id}
-            tripMembers={members.map(member => ({
-              user_id: member.user_id,
-              username: member.username,
-              full_name: member.full_name,
-            }))}
-          />
-
-          <ExpensesSection 
-            tripId={trip.id}
-            tripMembers={members.map(member => ({
-              user_id: member.user_id,
-              username: member.username,
-              full_name: member.full_name,
-              role: member.role
-            }))}
-            currentUserRole={currentUserMemberInfo?.role}
-          />
-        </TabsContent>
-
-        <TabsContent value="go" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <PlaneTakeoff className="h-5 w-5" />
-                Trip is Active!
-              </CardTitle>
-              <CardDescription>
-                Your trip is underway. Use this space for real-time updates, quick expense tracking, and live coordination.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Quick Expense Entry</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground mb-4">Add expenses on the go while you're traveling.</p>
-                    <Button className="w-full">Add Expense</Button>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Live Updates</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground mb-4">Share real-time updates with your travel group.</p>
-                    <Button variant="outline" className="w-full">Share Update</Button>
-                  </CardContent>
-                </Card>
+            
+            {/* Trip Management */}
+            {canDelete && (
+              <div className="pt-4 border-t">
+                <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="destructive" size="sm" className="w-full">
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete Trip
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Delete Trip</DialogTitle>
+                      <DialogDescription>
+                        Are you sure you want to delete this trip? This action cannot be undone and will remove all data including expenses, planning, and memories.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex justify-end space-x-2 mt-4">
+                      <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button 
+                        variant="destructive" 
+                        onClick={handleDeleteTrip}
+                        disabled={deleteMutation.isPending}
+                      >
+                        {deleteMutation.isPending ? "Deleting..." : "Delete Trip"}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </div>
-            </CardContent>
-          </Card>
-          
-          <ExpensesSection 
-            tripId={trip.id}
-            tripMembers={members.map(member => ({
-              user_id: member.user_id,
-              username: member.username,
-              full_name: member.full_name,
-              role: member.role
-            }))}
-            currentUserRole={currentUserMemberInfo?.role}
-          />
-        </TabsContent>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
-        <TabsContent value="reminisce" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Camera className="h-5 w-5" />
-                Trip Memories
-              </CardTitle>
-              <CardDescription>
-                Look back on your amazing trip and capture the memories you made together.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Photo Album</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground mb-4">Collect and share photos from your trip.</p>
-                    <Button className="w-full">View Photos</Button>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Trip Summary</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground mb-4">Review your expenses and create a final summary.</p>
-                    <Button variant="outline" className="w-full">Generate Summary</Button>
-                  </CardContent>
-                </Card>
-              </div>
-            </CardContent>
-          </Card>
-
-          <ExpensesSection 
-            tripId={trip.id}
-            tripMembers={members.map(member => ({
-              user_id: member.user_id,
-              username: member.username,
-              full_name: member.full_name,
-              role: member.role
-            }))}
-            currentUserRole={currentUserMemberInfo?.role}
-          />
-        </TabsContent>
-      </Tabs>
+      {/* Invite Link Dialog */}
+      <Dialog open={isInviteLinkDialogOpen} onOpenChange={setIsInviteLinkDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Share this Invite Link</DialogTitle>
+            <DialogDescription>
+              Anyone with this link can join your trip. The link is valid for 7 days.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center space-x-2 mt-4">
+            <Input value={generatedLink} readOnly className="flex-1" />
+            <Button onClick={handleCopyLink} variant="secondary">
+              Copy
+            </Button>
+          </div>
+          <Button onClick={() => setIsInviteLinkDialogOpen(false)} variant="outline" className="mt-4 w-full">
+            Close
+          </Button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
