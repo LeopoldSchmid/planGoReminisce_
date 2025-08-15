@@ -14,12 +14,14 @@ import { ChevronLeft, ChevronRight, Plus, X, Edit2, Trash2, EyeOff, CheckCircle,
 import { cn } from '@/lib/utils';
 import { AvailabilityStatus, getTripAvailabilityHeatmap, AvailabilityHeatmapData } from '@/services/availabilityService';
 import { ProposalDiscussion } from './ProposalDiscussion';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { getTripMembers } from '@/services/tripService';
+import { castVote } from '@/services/planningService';
 
 interface DateRange {
   id: string;
@@ -156,6 +158,14 @@ export function EnhancedAvailabilityView({
     queryFn: () => getTripAvailabilityHeatmap(tripId, heatmapDateRange),
     enabled: !!tripId && availabilityView === 'group',
   });
+
+  // Fetch trip members
+  const { data: membersData } = useQuery({
+    queryKey: ['tripMembers', tripId, currentUserId],
+    queryFn: () => getTripMembers(tripId, currentUserId),
+    enabled: !!tripId && !!currentUserId,
+  });
+  const memberCount = membersData?.members?.length || 0;
 
   // Refresh data when switching to availability tab (only once per tab switch)
   useEffect(() => {
@@ -511,6 +521,8 @@ export function EnhancedAvailabilityView({
     closeFabMenu();
   };
 
+  const queryClient = useQueryClient();
+
   // Helper function to render the main content
   const renderContent = () => {
     return (
@@ -561,54 +573,50 @@ export function EnhancedAvailabilityView({
 
             {/* Availability Type Selector - Only shown in personal view */}
             {availabilityView === 'personal' && (
-              <div className="flex items-center justify-center gap-3 mb-4">
+              <div className="flex items-center justify-center gap-4 mb-4">
                 <button
-                  onClick={() => {
-                    console.log('Setting availability type to: available');
-                    setSelectedAvailabilityType('available' as AvailabilityStatus);
-                  }}
+                  onClick={() => setSelectedAvailabilityType('available')}
                   className={cn(
-                    "flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200",
+                    "flex items-center justify-center rounded-full transition-all duration-200",
                     selectedAvailabilityType === 'available'
-                      ? "bg-green-100 border border-green-300 shadow-sm"
-                      : "hover:bg-gray-50"
+                      ? "gap-2 px-3 py-1 bg-green-100 border border-green-200"
+                      : "w-8 h-8 hover:bg-gray-100"
                   )}
+                  aria-label="Set availability to Available"
                 >
-                  <div className="w-4 h-4 bg-green-500 rounded-full transition-all duration-200"></div>
+                  <div className="w-4 h-4 bg-green-500 rounded-full shrink-0"></div>
                   {selectedAvailabilityType === 'available' && (
                     <span className="text-sm font-medium text-green-700">Available</span>
                   )}
                 </button>
+
                 <button
-                  onClick={() => {
-                    console.log('Setting availability type to: maybe');
-                    setSelectedAvailabilityType('maybe' as AvailabilityStatus);
-                  }}
+                  onClick={() => setSelectedAvailabilityType('maybe')}
                   className={cn(
-                    "flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200",
+                    "flex items-center justify-center rounded-full transition-all duration-200",
                     selectedAvailabilityType === 'maybe'
-                      ? "bg-orange-100 border border-orange-300 shadow-sm"
-                      : "hover:bg-gray-50"
+                      ? "gap-2 px-3 py-1 bg-orange-100 border border-orange-200"
+                      : "w-8 h-8 hover:bg-gray-100"
                   )}
+                  aria-label="Set availability to maybe"
                 >
-                  <div className="w-4 h-4 bg-orange-500 rounded-full transition-all duration-200"></div>
+                  <div className="w-4 h-4 bg-yellow-500 rounded-full shrink-0"></div>
                   {selectedAvailabilityType === 'maybe' && (
-                    <span className="text-sm font-medium text-orange-700">Can work</span>
+                    <span className="text-sm font-medium text-yellow-700">Maybe</span>
                   )}
                 </button>
+
                 <button
-                  onClick={() => {
-                    console.log('Setting availability type to: unavailable');
-                    setSelectedAvailabilityType('unavailable' as AvailabilityStatus);
-                  }}
+                  onClick={() => setSelectedAvailabilityType('unavailable')}
                   className={cn(
-                    "flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200",
+                    "flex items-center justify-center rounded-full transition-all duration-200",
                     selectedAvailabilityType === 'unavailable'
-                      ? "bg-red-100 border border-red-300 shadow-sm"
-                      : "hover:bg-gray-50"
+                      ? "gap-2 px-3 py-1 bg-red-100 border border-red-200"
+                      : "w-8 h-8 hover:bg-gray-100"
                   )}
+                  aria-label="Set availability to Unavailable"
                 >
-                  <div className="w-4 h-4 bg-red-500 rounded-full transition-all duration-200"></div>
+                  <div className="w-4 h-4 bg-red-500 rounded-full shrink-0"></div>
                   {selectedAvailabilityType === 'unavailable' && (
                     <span className="text-sm font-medium text-red-700">Unavailable</span>
                   )}
@@ -731,10 +739,11 @@ export function EnhancedAvailabilityView({
                   canEdit={true} // Set based on user permissions
                   canDelete={true} // Set based on user permissions
                   canFinalize={true} // Set based on user permissions
+                  memberCount={memberCount}
                   onVote={async (proposalId, voteType) => {
-                    // Implement vote handling
-                    console.log(`Vote ${voteType} for proposal ${proposalId}`);
-                    // Add your vote handling logic here
+                    // Actually cast the vote and refetch proposals
+                    await castVote(tripId, currentUserId, { date_proposal_id: proposalId, vote_type: voteType });
+                    queryClient.invalidateQueries({ queryKey: ['dateProposals'] });
                   }}
                   onEdit={(proposal) => {
                     // Implement edit handling

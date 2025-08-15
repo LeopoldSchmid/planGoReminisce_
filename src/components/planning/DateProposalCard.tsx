@@ -41,6 +41,7 @@ interface DateProposalCardProps {
   onInvite?: (proposalId: string) => void;
   onEraseVote?: (proposalId: string) => void;
   className?: string;
+  memberCount: number;
 }
 
 export function DateProposalCard({
@@ -56,7 +57,8 @@ export function DateProposalCard({
   onDiscussion,
   onInvite,
   onEraseVote,
-  className
+  className,
+  memberCount
 }: DateProposalCardProps) {
   const [isVoting, setIsVoting] = useState(false);
   const [showDescription, setShowDescription] = useState(false);
@@ -113,15 +115,13 @@ export function DateProposalCard({
 
   // Helper to get vote counts for bar
   const voteStats = proposal.vote_stats || { upvotes: 0, downvotes: 0, neutral_votes: 0, total_votes: 0 };
-  const totalVotes = voteStats.total_votes;
-  const availableVotes = voteStats.upvotes;
-  const maybeVotes = voteStats.neutral_votes;
-  const unavailableVotes = voteStats.downvotes;
-
-  // Calculate percentages for the bar
-  const availablePercent = totalVotes ? (availableVotes / totalVotes) * 100 : 0;
-  const maybePercent = totalVotes ? (maybeVotes / totalVotes) * 100 : 0;
-  const unavailablePercent = totalVotes ? (unavailableVotes / totalVotes) * 100 : 0;
+  // Simulate votes array: available, maybe, unavailable, unvoted (gray)
+  // In real app, you would have a list of all members' votes. Here, we use counts.
+  const votesArray: (VoteType | 'unvoted')[] = [];
+  for (let i = 0; i < voteStats.upvotes; i++) votesArray.push('available');
+  for (let i = 0; i < voteStats.neutral_votes; i++) votesArray.push('maybe');
+  for (let i = 0; i < voteStats.downvotes; i++) votesArray.push('unavailable');
+  while (votesArray.length < memberCount) votesArray.push('unvoted');
 
   return (
     <Card className={cn(
@@ -196,7 +196,7 @@ export function DateProposalCard({
               )}
               {onFinalize && canFinalize && (
                 <DropdownMenuItem onClick={handleFinalize}>
-                  <CalendarCheck className="mr-2 h-4 w-4" />
+                  <CalendarCheck className="h-4 w-4" />
                   <span>Finalize dates</span>
                 </DropdownMenuItem>
               )}
@@ -215,35 +215,7 @@ export function DateProposalCard({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        {/* Proposed by */}
-        <div className="flex items-center gap-1.5 mt-1.5">
-          <Avatar className="h-5 w-5 sm:h-6 sm:w-6">
-            <AvatarImage src={proposal.proposed_by_profile?.avatar_url} />
-            <AvatarFallback className="text-[10px] sm:text-xs">
-              {(proposal.proposed_by_profile?.full_name || proposal.proposed_by_profile?.username || 'U')[0]?.toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-          <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">
-            {proposal.proposed_by_profile?.full_name || proposal.proposed_by_profile?.username || 'Unknown User'}
-          </span>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-2.5 px-3 py-2 sm:px-4">
-        {/* Horizontal bar for votes/availability */}
-        <div className="mt-3">
-          <div className="h-2 bg-gray-100 rounded-full overflow-hidden flex">
-            {availablePercent > 0 && (
-              <div className="h-full bg-green-500" style={{ width: `${availablePercent}%` }} />
-            )}
-            {maybePercent > 0 && (
-              <div className="h-full bg-yellow-400" style={{ width: `${maybePercent}%` }} />
-            )}
-            {unavailablePercent > 0 && (
-              <div className="h-full bg-red-400" style={{ width: `${unavailablePercent}%` }} />
-            )}
-          </div>
-        </div>
-        {/* Show notes/description if available */}
+        {/* Description above the bar */}
         {hasNotes && (
           <div className="mt-3">
             <p className="text-sm text-gray-700">
@@ -251,6 +223,81 @@ export function DateProposalCard({
             </p>
           </div>
         )}
+      </CardHeader>
+      <CardContent className="space-y-2.5 px-3 py-2 sm:px-4">
+        {/* Horizontal bar for votes/availability, split by memberCount */}
+        <div className="mt-3">
+          <div className="h-2 bg-gray-100 rounded-full overflow-hidden flex">
+            {votesArray.map((vote, idx) => (
+              <div
+                key={idx}
+                className={cn(
+                  'h-full',
+                  'transition-all',
+                  vote === 'available' && 'bg-green-500',
+                  vote === 'maybe' && 'bg-yellow-400',
+                  vote === 'unavailable' && 'bg-red-400',
+                  vote === 'unvoted' && 'bg-gray-300'
+                )}
+                style={{ width: `${100 / memberCount}%` }}
+              />
+            ))}
+          </div>
+        </div>
+        {/* Status icons below the bar */}
+        <div className="flex items-center justify-end mt-2 gap-2">
+          {/* Available (green) */}
+          <button
+            type="button"
+            onClick={() => handleVote('available')}
+            className={cn(
+              "flex items-center justify-center rounded-full transition-all duration-200",
+              proposal.user_vote === 'available'
+                ? "gap-2 px-3 py-1 bg-green-100 border border-green-200"
+                : "w-8 h-8 hover:bg-gray-100"
+            )}
+            aria-label="Vote Available"
+          >
+            <div className="w-4 h-4 bg-green-500 rounded-full shrink-0" />
+            {proposal.user_vote === 'available' && (
+              <span className="text-sm font-medium text-green-700">Available</span>
+            )}
+          </button>
+          {/* Maybe (yellow) */}
+          <button
+            type="button"
+            onClick={() => handleVote('maybe')}
+            className={cn(
+              "flex items-center justify-center rounded-full transition-all duration-200",
+              proposal.user_vote === 'maybe'
+                ? "gap-2 px-3 py-1 bg-yellow-100 border border-yellow-200"
+                : "w-8 h-8 hover:bg-gray-100"
+            )}
+            aria-label="Vote Maybe"
+          >
+            <div className="w-4 h-4 bg-yellow-500 rounded-full shrink-0" />
+            {proposal.user_vote === 'maybe' && (
+              <span className="text-sm font-medium text-yellow-700">Maybe</span>
+            )}
+          </button>
+          {/* Unavailable (red) */}
+          <button
+            type="button"
+            onClick={() => handleVote('unavailable')}
+            className={cn(
+              "flex items-center justify-center rounded-full transition-all duration-200",
+              proposal.user_vote === 'unavailable'
+                ? "gap-2 px-3 py-1 bg-red-100 border border-red-200"
+                : "w-8 h-8 hover:bg-gray-100"
+            )}
+            aria-label="Vote Unavailable"
+          >
+            <div className="w-4 h-4 bg-red-500 rounded-full shrink-0" />
+            {proposal.user_vote === 'unavailable' && (
+              <span className="text-sm font-medium text-red-700">Unavailable</span>
+            )}
+          </button>
+        </div>
       </CardContent>
     </Card>
   );

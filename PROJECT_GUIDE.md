@@ -205,6 +205,13 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
 
 ## Recent Fixes & Improvements
 
+### UI and UX Consistency (2025-06-21)
+- **Consistent Voting UI**: Updated the voting buttons on `DateProposalCard` to match the interactive style of the availability selector in `EnhancedAvailabilityView`. The user's current vote is now clearly highlighted with a background and label, while other options are presented as clean, clickable dots.
+- **Real-time Vote Bar Updates**: The segmented vote bar on `DateProposalCard` now accurately reflects the total number of trip members and updates immediately after a user casts a vote. Each segment is colored according to the vote status (available, maybe, unavailable) or shown as gray for members who haven't voted.
+- **Corrected Data Flow for Votes**: Fixed an issue where the `user_vote` status was not being correctly passed to the `DateProposalCard`, preventing the UI from highlighting the user's selection.
+- **Implemented Live Voting**: The `onVote` handler now triggers a backend update via `castVote` and refetches date proposal data to ensure the UI reflects the new state without a manual refresh.
+- **Refined Availability Selector**: Aligned the "maybe" vote option's text and color (to yellow) in the availability selector to maintain consistency with the rest of the application's voting system.
+
 ### Availability System Refactor (2025-06-20)
 - **Architectural Separation**: Clear distinction between central personal calendar and trip-specific calendars
 - **Database Schema Updates**: Renamed `trip_availability_overrides` to `trip_user_availability` with sync tracking
